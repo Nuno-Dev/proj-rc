@@ -5,7 +5,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#define PORT “58001”
+#define PORT '58001'
 int fd, errcode;
 ssize_t n;
 socklen_t addrlen;
