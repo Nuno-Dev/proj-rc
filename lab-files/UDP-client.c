@@ -25,14 +25,16 @@ int main()
     errcode = getaddrinfo("tejo.tecnico.ulisboa.pt", PORT, &hints, &res);
     if (errcode != 0) /*error*/
         exit(1);
+
     n = sendto(fd, "Hello!\n", 7, 0, res->ai_addr, res->ai_addrlen);
     if (n == -1) /*error*/
         exit(1);
+
     addrlen = sizeof(addr);
-    n = recvfrom(fd, buffer, 128, 0,
-                 (struct sockaddr *)&addr, &addrlen);
+    n = recvfrom(fd, buffer, 128, 0, (struct sockaddr *)&addr, &addrlen);
     if (n == -1) /*error*/
         exit(1);
+
     write(1, "echo: ", 6);
     write(1, buffer, n);
     freeaddrinfo(res);

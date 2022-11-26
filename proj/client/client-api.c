@@ -14,7 +14,7 @@ extern char GSIP[GS_IP_SIZE] = GS_DEFAULT_IP;
 extern char GSport[GS_PORT_SIZE] = GS_DEFAULT_PORT;
 
 /* UDP Socket related variables */
-int fdDSUDP;
+int fdUDP;
 struct addrinfo hintsUDP, *resUDP;
 struct sockaddr_in addrUDP;
 socklen_t addrlenUDP;
@@ -25,23 +25,21 @@ struct addrinfo hintsTCP, *resTCP;
 
 /* Client current session variables */
 int clientSession; // LOGGED_IN or LOGGED_OUT
-char activeClientUID[CLIENT_UID_SIZE], activeClientPWD[CLIENT_PWD_SIZE];
-
-/* Client DS group selected variable */
-char activeDSGID[DS_GID_SIZE];
+char activePlayerID[CLIENT_PLID_SIZE];
 
 /* Message to DS via UDP protocol variable */
-char messageToDSUDP[CLIENT_TO_DS_UDP_SIZE];
+char clientMessage[CLIENT_MESSAGE_UDP_SIZE];
 
 /**
  ***************************************************************************
  *       UDP connection
  ***************************************************************************
  */
+
 void createUDPSocket()
 {
-    fdDSUDP = socket(AF_INET, SOCK_DGRAM, 0);
-    if (fdDSUDP == -1)
+    fdUDP = socket(AF_INET, SOCK_DGRAM, 0);
+    if (fdUDP == -1)
     {
         perror("[-] Client UDP socket failed to create");
         exit(EXIT_FAILURE);
@@ -53,61 +51,56 @@ void createUDPSocket()
     if (errcode != 0)
     {
         perror("[-] Failed on UDP address translation");
-        close(fdDSUDP);
+        close(fdUDP);
         exit(EXIT_FAILURE);
     }
 }
 
 void sendUDPMessage(char *message)
 {
-    int numTries = DEFAULT_UDPRECV_TRIES;
+    int numTries = MAX_UDP_RECV_TRIES;
     ssize_t n;
 
     while (numTries-- > 0)
     {
-        // Client -> DS message
-        n = sendto(fdDSUDP, message, strlen(message), 0, resUDP->ai_addr, resUDP->ai_addrlen); // strlen counts nl
+        // Client -> GS message
+        n = sendto(fdUDP, message, strlen(message), 0, resUDP->ai_addr, resUDP->ai_addrlen);
         if (n == -1)
         { // Syscall failed -> terminate gracefully
             perror("[-] UDP message failed to send");
-            failDSUDP();
+            failUDP();
         }
         // Start recvfrom timer
-        if (timerOn(fdDSUDP) == -1)
+        if (timerOn(fdUDP) == -1)
         {
             perror("[-] Failed to set read timeout on UDP socket");
-            failDSUDP();
+            failUDP();
         }
-        // DS -> Client message
+        // GS -> Client message
         addrlenUDP = sizeof(addrUDP);
-        char dsReply[DS_TO_CLIENT_UDP_SIZE];
-        n = recvfrom(fdDSUDP, dsReply, DS_TO_CLIENT_UDP_SIZE, 0, (struct sockaddr *)&addrUDP, &addrlenUDP);
+        char serverReply[SERVER_MESSAGE_UDP_SIZE];
+        n = recvfrom(fdUDP, serverReply, SERVER_MESSAGE_UDP_SIZE, 0, (struct sockaddr *)&addrUDP, &addrlenUDP);
         if (n == -1)
         {
             if ((errno == EAGAIN || errno == EWOULDBLOCK) && (numTries > 0))
-            {
                 continue;
-            }
-            else
-            {
-                perror("[-] Failed to receive UDP message");
-                failDSUDP();
-            }
+            perror("[-] Failed to receive UDP message");
+            failUDP();
         }
         // Turn timer off if message was received
-        if (timerOff(fdDSUDP) == -1)
+        if (timerOff(fdUDP) == -1)
         {
             perror("[-] Failed to reset read timeout on UDP socket");
-            failDSUDP();
+            failUDP();
         }
-        dsReply[n] = '\0';
-        if (dsReply[n - 1] != '\n')
-        { // Each request/reply ends with newline according to DS-Client communication protocol
+        serverReply[n] = '\0';
+        if (serverReply[n - 1] != '\n')
+        { // Each request/reply must end with newline according to the protocol
             fprintf(stderr, "[-] Wrong protocol message received from server via UDP. Program will now exit.\n");
-            failDSUDP();
+            failUDP();
         }
-        dsReply[n - 1] = '\0'; // Replace \n with \0
-        processDSUDPReply(dsReply);
+        serverReply[n - 1] = '\0'; // Remove newline from message
+        processUDPReply(serverReply);
         break;
     }
 }
@@ -269,7 +262,7 @@ void processUDPReply(char *message)
 
 static void failUDP()
 {
-    closeUDPSocket(fdDSUDP, resUDP);
+    closeUDPSocket(fdUDP, resUDP);
     exit(EXIT_FAILURE);
 }
 
@@ -291,7 +284,7 @@ void connectTCPSocket()
     if (fdTCP == -1)
     {
         perror("[-] Client TCP socket failed to create");
-        failDSUDP();
+        failUDP();
     }
     memset(&hintsTCP, 0, sizeof(hintsTCP));
     hintsTCP.ai_family = AF_INET;
@@ -301,7 +294,7 @@ void connectTCPSocket()
     {
         perror("[-] Failed on TCP address translation");
         close(fdTCP);
-        failDSUDP();
+        failUDP();
     }
     int n = connect(fdTCP, resTCP->ai_addr, resTCP->ai_addrlen);
     if (n == -1)
@@ -313,7 +306,7 @@ void connectTCPSocket()
 
 static void failTCP()
 {
-    closeUDPSocket(fdDSUDP, resUDP);
+    closeUDPSocket(fdUDP, resUDP);
     closeTCPSocket(fdTCP, resTCP);
     exit(EXIT_FAILURE);
 }
@@ -330,48 +323,138 @@ static void errTCP()
  ***************************************************************************
  */
 
-/* Parse client commands */
-int parseClientCommand(char *command)
+void clientStart(char **tokenList, int numTokens)
 {
-    if (!strcmp(command, "start") || !strcmp(command, "sg"))
-        return START;
-    else if (!strcmp(command, "play") || !strcmp(command, "pl"))
-        return PLAY;
-    else if (!strcmp(command, "guess") || !strcmp(command, "gw"))
-        return GUESS;
-    else if (!strcmp(command, "scoreboard") || !strcmp(command, "sb"))
-        return SCOREBOARD;
-    else if (!strcmp(command, "hint") || !strcmp(command, "h"))
-        return HINT;
-    else if (!strcmp(command, "state") || !strcmp(command, "st"))
-        return STATE;
-    else if (!strcmp(command, "quit"))
-        return QUIT;
-    else if (!strcmp(command, "exit"))
-        return EXIT;
-    else
-    { // No valid command was received
-        fprintf(stderr, "[-] Invalid user command code. Please try again.\n");
-        return INVALID_COMMAND;
+    if (numTokens != 2)
+    { // start/sg PLID
+        fprintf(stderr, "[-] Incorrect start command usage. Please try again.\n");
+        return;
     }
+    if (!isValidPLID(tokenList[1]))
+    { // Protocol validation
+        fprintf(stderr, "[-] Invalid start command arguments. Please check given PLID and try again.\n");
+        return;
+    }
+    sprintf(clientMessage, "SNG %s\n", tokenList[1]);
+    sendUDPMessage(clientMessage);
 }
 
-void clientStart(char **tokenList, int numTokens);
-void clientGuess(char **tokenList, int numTokens);
-void clientPlay(char **tokenList, int numTokens);
-void clientScoreboard(char **tokenList, int numTokens);
-void clientHint(char **tokenList, int numTokens);
-void clientState(char **tokenList, int numTokens);
-void clientQuit(int numTokens);
+void clientPlay(char **tokenList, int numTokens)
+{
+    if (numTokens != 2)
+    { // play/pl LETTER
+        fprintf(stderr, "[-] Incorrect play command usage. Please try again.\n");
+        return;
+    }
+    if (!isValidPlay(tokenList[1]))
+    { // Protocol validation
+        fprintf(stderr, "[-] Invalid play command arguments. Please check given input and try again.\n");
+        return;
+    }
+    sprintf(clientMessage, "PLG %s\n", tokenList[1]);
+    sendUDPMessage(clientMessage);
+}
+
+void clientGuess(char **tokenList, int numTokens)
+{
+    if (numTokens != 2)
+    { // guess/gw WORD
+        fprintf(stderr, "[-] Incorrect guess command usage. Please try again.\n");
+        return;
+    }
+    if (!isValidGuess(tokenList[1]))
+    { // Protocol validation
+        fprintf(stderr, "[-] Invalid guess command arguments. Please check given word and try again.\n");
+        return;
+    }
+    sprintf(clientMessage, "PWG %s\n", tokenList[1]);
+    sendUDPMessage(clientMessage);
+}
+
+void clientScoreboard(char **tokenList, int numTokens)
+{
+    if (numTokens != 1)
+    { // scoreboard/sb
+        fprintf(stderr, "[-] Incorrect scoreboard command usage. Please try again.\n");
+        return;
+    }
+
+    connectTCPSocket();
+    sprintf(clientMessage, "GSB\n");
+    if (sendTCPMessage(fdTCP, clientMessage) == -1)
+    {
+        failTCP();
+    }
+
+    /******************************************************/
+    /* GET RESPONSE FROM SERVER AND PROCESS THAT RESPONSE*/
+    /******************************************************/
+}
+
+void clientHint(char **tokenList, int numTokens)
+{
+    if (numTokens != 1)
+    { // hint/h
+        fprintf(stderr, "[-] Incorrect hint command usage. Please try again.\n");
+        return;
+    }
+
+    connectTCPSocket();
+    sprintf(clientMessage, "GHL\n");
+    if (sendTCPMessage(fdTCP, clientMessage) == -1)
+    {
+        failTCP();
+    }
+
+    /******************************************************/
+    /* GET RESPONSE FROM SERVER AND PROCESS THAT RESPONSE*/
+    /******************************************************/
+}
+
+void clientState(char **tokenList, int numTokens)
+{
+    if (numTokens != 1)
+    { // state/st
+        fprintf(stderr, "[-] Incorrect state command usage. Please try again.\n");
+        return;
+    }
+
+    connectTCPSocket();
+    sprintf(clientMessage, "STA\n");
+    if (sendTCPMessage(fdTCP, clientMessage) == -1)
+    {
+        failTCP();
+    }
+
+    /******************************************************/
+    /* GET RESPONSE FROM SERVER AND PROCESS THAT RESPONSE*/
+    /******************************************************/
+}
+
+void clientQuit(int numTokens)
+{
+    if (numTokens != 1)
+    { // quit
+        fprintf(stderr, "[-] Incorrect quit command usage. Please try again.\n");
+        return;
+    }
+    sprintf(clientMessage, "QUT\n");
+    sendUDPMessage(clientMessage);
+    closeTCPSocket(fdTCP, resTCP);
+    printf("[+] Quitting...\n");
+}
 
 void clientExit(int numTokens)
 {
     if (numTokens != 1)
-    { // EXIT
+    { // exit
         fprintf(stderr, "[-] Incorrect exit command usage. Please try again.\n");
         return;
     }
-    closeUDPSocket(fdDSUDP, resUDP);
+    sprintf(clientMessage, "QUT\n");
+    sendUDPMessage(clientMessage);
+    closeTCPSocket(fdTCP, resTCP);
+    closeUDPSocket(fdUDP, resUDP);
     printf("[+] Exiting...\n");
     exit(EXIT_SUCCESS);
 }

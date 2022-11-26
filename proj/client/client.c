@@ -21,7 +21,7 @@ static void parseArgs(int argc, char *argv[])
         switch (argv[i][1])
         {
         case 'n':
-            if (validAddress(argv[i + 1]))
+            if (isValidAddress(argv[i + 1]))
                 strcpy(GSIP, argv[i + 1]);
             else
             {
@@ -30,7 +30,7 @@ static void parseArgs(int argc, char *argv[])
             }
             break;
         case 'p':
-            if (validPort(argv[i + 1]))
+            if (isValidPort(argv[i + 1]))
                 strcpy(GSport, argv[i + 1]);
             else
             {

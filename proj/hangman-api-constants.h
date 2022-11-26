@@ -34,4 +34,16 @@
 #define QUIT 7
 #define EXIT 8
 
+/* Max number of tries to recover packets that were sent via UDP protocol */
+#define MAX_UDP_RECV_TRIES 3
+
+/* The size of a client's PLID according to the statement's rules */
+#define CLIENT_PLID_SIZE 6
+
+#define CLIENT_MESSAGE_UDP_SIZE 40
+
+#define SERVER_MESSAGE_UDP_SIZE 4096
+
+#define CLIENT_PUID_SIZE 6
+
 #endif

@@ -14,9 +14,6 @@ void sendUDPMessage(char *message);
 
 void processUDPReply(char *message);
 
-/* Parse client commands */
-int parseClientCommand(char *command);
-
 void clientStart(char **tokenList, int numTokens);
 void clientGuess(char **tokenList, int numTokens);
 void clientPlay(char **tokenList, int numTokens);
