@@ -64,10 +64,8 @@ void processInput()
         char commandTok[CLIENT_COMMAND_SIZE]; // We must preserve command so perform token separation here
         strcpy(commandTok, command);
         token = strtok(commandTok, " ");
-        if (token[0] == '\n')
-        { // User presses enter -> avoid parsing wrong things
+        if (token[0] == '\n') // user presses enter without input
             continue;
-        }
         while (token)
         {
             tokenList[numTokens++] = token;
@@ -86,19 +84,19 @@ void processInput()
             clientGuess(tokenList, numTokens);
             break;
         case SCOREBOARD:
-            clientScoreboard(tokenList, numTokens);
+            clientScoreboard(numTokens);
             break;
         case HINT:
-            clientHint(tokenList, numTokens);
+            clientHint(numTokens);
             break;
         case STATE:
-            clientState(tokenList, numTokens);
+            clientState(numTokens);
             break;
         case QUIT:
             clientQuit(numTokens);
             break;
         case EXIT:
-            clientExit(tokenList, numTokens);
+            clientExit(numTokens);
             break;
         default:
             break;

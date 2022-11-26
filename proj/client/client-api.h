@@ -17,9 +17,9 @@ void processUDPReply(char *message);
 void clientStart(char **tokenList, int numTokens);
 void clientGuess(char **tokenList, int numTokens);
 void clientPlay(char **tokenList, int numTokens);
-void clientScoreboard(char **tokenList, int numTokens);
-void clientHint(char **tokenList, int numTokens);
-void clientState(char **tokenList, int numTokens);
+void clientScoreboard(int numTokens);
+void clientHint(int numTokens);
+void clientState(int numTokens);
 void clientQuit(int numTokens);
 void clientExit(int numTokens);
 

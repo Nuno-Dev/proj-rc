@@ -65,21 +65,6 @@ int isValidGuess(char *guess)
     return validRegex(guess, "^[a-zA-Z]+$");
 }
 
-int timerOn(int fd)
-{
-    struct timeval timeout;
-    memset((char *)&timeout, 0, sizeof(timeout));
-    timeout.tv_sec = 3;
-    return (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&timeout, sizeof(struct timeval)));
-}
-
-int timerOff(int fd)
-{
-    struct timeval timeout;
-    memset((char *)&timeout, 0, sizeof(timeout));
-    return (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&timeout, sizeof(struct timeval)));
-}
-
 int sendTCPMessage(int fd, char *message)
 {
     int bytesSent = 0;
@@ -139,4 +124,19 @@ int readTCPMessage(int fd, char *message, int maxSize)
         bytesRead += n;
     }
     return bytesRead;
+}
+
+int timerOn(int fd)
+{
+    struct timeval timeout;
+    memset((char *)&timeout, 0, sizeof(timeout));
+    timeout.tv_sec = 3;
+    return (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&timeout, sizeof(struct timeval)));
+}
+
+int timerOff(int fd)
+{
+    struct timeval timeout;
+    memset((char *)&timeout, 0, sizeof(timeout));
+    return (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&timeout, sizeof(struct timeval)));
 }

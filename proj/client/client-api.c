@@ -24,8 +24,7 @@ int fdTCP;
 struct addrinfo hintsTCP, *resTCP;
 
 /* Client current session variables */
-int clientSession; // LOGGED_IN or LOGGED_OUT
-char activePlayerID[CLIENT_PLID_SIZE];
+char clientPLID[CLIENT_PLID_SIZE];
 
 /* Message to DS via UDP protocol variable */
 char clientMessage[CLIENT_MESSAGE_UDP_SIZE];
@@ -335,6 +334,7 @@ void clientStart(char **tokenList, int numTokens)
         fprintf(stderr, "[-] Invalid start command arguments. Please check given PLID and try again.\n");
         return;
     }
+    strcpy(clientPLID, tokenList[1]);
     sprintf(clientMessage, "SNG %s\n", tokenList[1]);
     sendUDPMessage(clientMessage);
 }
@@ -371,7 +371,7 @@ void clientGuess(char **tokenList, int numTokens)
     sendUDPMessage(clientMessage);
 }
 
-void clientScoreboard(char **tokenList, int numTokens)
+void clientScoreboard(int numTokens)
 {
     if (numTokens != 1)
     { // scoreboard/sb
@@ -391,7 +391,7 @@ void clientScoreboard(char **tokenList, int numTokens)
     /******************************************************/
 }
 
-void clientHint(char **tokenList, int numTokens)
+void clientHint(int numTokens)
 {
     if (numTokens != 1)
     { // hint/h
@@ -411,7 +411,7 @@ void clientHint(char **tokenList, int numTokens)
     /******************************************************/
 }
 
-void clientState(char **tokenList, int numTokens)
+void clientState(int numTokens)
 {
     if (numTokens != 1)
     { // state/st
