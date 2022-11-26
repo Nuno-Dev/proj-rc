@@ -1,5 +1,5 @@
-#ifndef HANGMAN_CONSTANTS_H
-#define HANGMAN_CONSTANTS_H
+#ifndef HANGMAN_API_CONSTANTS_H
+#define HANGMAN_API_CONSTANTS_H
 
 /* Preprocessed macro to determine min(x,y) */
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
@@ -9,10 +9,10 @@
 
 // ALTERAR AQUI ADICIONAR NUMERO DO GRUPO
 /* By default GS server is set to be listening on port 58000 + group number */
-#define GS_DEFAULT_PORT "58000"  // + GROUP NUMBER
+#define GS_DEFAULT_PORT "58000" // + GROUP NUMBER
 
 /* Hostnames (including the dots) can be at most 253 characters long */
-#define GS_ADDR_SIZE 254
+#define GS_IP_SIZE 254
 
 /* Ports range from 0 to 65535 */
 #define GS_PORT_SIZE 6

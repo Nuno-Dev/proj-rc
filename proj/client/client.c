@@ -1,10 +1,11 @@
-#include "hangman-client-api.h"
 #include "../hangman-api.h"
 #include "../hangman-api-constants.h"
+#include "client-api.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+/* Parse arguments */
 static void parseArgs(int argc, char *argv[])
 {
     if (!(argc == 1 || argc == 3 || argc == 5))
@@ -21,7 +22,7 @@ static void parseArgs(int argc, char *argv[])
         {
         case 'n':
             if (validAddress(argv[i + 1]))
-                strcpy(addrDS, argv[i + 1]);
+                strcpy(GSIP, argv[i + 1]);
             else
             {
                 fprintf(stderr, "[-] Invalid GS hostname/IP address given. Please try again.\n");
@@ -30,7 +31,7 @@ static void parseArgs(int argc, char *argv[])
             break;
         case 'p':
             if (validPort(argv[i + 1]))
-                strcpy(portDS, argv[i + 1]);
+                strcpy(GSport, argv[i + 1]);
             else
             {
                 fprintf(stderr, "[-] Invalid GS port given. Please try again.\n");
@@ -50,7 +51,7 @@ static void parseArgs(int argc, char *argv[])
 
 void processInput()
 {
-    int cmd;
+    int command_number;
     while (1)
     {
         char command[CLIENT_COMMAND_SIZE];
@@ -72,53 +73,32 @@ void processInput()
             tokenList[numTokens++] = token;
             token = strtok(NULL, " ");
         }
-        cmd = parseClientDSCommand(tokenList[0]);
-        switch (cmd)
+        command_number = parseClientCommand(tokenList[0]);
+        switch (command_number)
         {
-        case REGISTER:
-            clientRegister(tokenList, numTokens);
+        case START:
+            clientStart(tokenList, numTokens);
             break;
-        case UNREGISTER:
-            clientUnregister(tokenList, numTokens);
+        case PLAY:
+            clientPlay(tokenList, numTokens);
             break;
-        case LOGIN:
-            clientLogin(tokenList, numTokens);
+        case GUESS:
+            clientGuess(tokenList, numTokens);
             break;
-        case LOGOUT:
-            clientLogout(tokenList, numTokens);
+        case SCOREBOARD:
+            clientScoreboard(tokenList, numTokens);
             break;
-        case SHOWUID:
-            showCurrentClient(numTokens);
+        case HINT:
+            clientHint(tokenList, numTokens);
+            break;
+        case STATE:
+            clientState(tokenList, numTokens);
+            break;
+        case QUIT:
+            clientQuit(numTokens);
             break;
         case EXIT:
-            clientExit(numTokens);
-            break;
-        case GROUPS:
-            showDSGroups(numTokens);
-            break;
-        case SUBSCRIBE:
-            clientSubscribeGroup(tokenList, numTokens);
-            break;
-        case UNSUBSCRIBE:
-            clientUnsubscribeGroup(tokenList, numTokens);
-            break;
-        case MY_GROUPS:
-            clientShowSubscribedGroups(numTokens);
-            break;
-        case SELECT:
-            clientSelectGroup(tokenList, numTokens);
-            break;
-        case SHOWGID:
-            showCurrentSelectedGID(numTokens);
-            break;
-        case ULIST:
-            showClientsSubscribedToGroup(tokenList, numTokens);
-            break;
-        case POST:
-            clientPostInGroup(command);
-            break;
-        case RETRIEVE:
-            clientRetrieveFromGroup(tokenList, numTokens);
+            clientExit(tokenList, numTokens);
             break;
         default:
             break;
@@ -133,7 +113,7 @@ void processInput()
 int main(int argc, char *argv[])
 {
     parseArgs(argc, argv);
-    createDSUDPSocket();
+    createUDPSocket();
     processInput();
     exit(EXIT_SUCCESS);
 }
