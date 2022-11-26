@@ -4,5 +4,6 @@
 #include "../hangman-api.h"
 #include "../hangman-api-constants.h"
 
-extern char addrDS[DS_ADDR_SIZE];
-extern char portDS[DS_PORT_SIZE];
+/* GS Server information variables */
+extern char GSIP[GS_IP_SIZE];
+extern char GSport[GS_PORT_SIZE];
