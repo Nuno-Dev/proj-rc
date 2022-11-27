@@ -56,4 +56,6 @@
 
 #define CLIENT_PUID_SIZE 6
 
+#define MAX_WORD_LENGTH_SIZE 30
+
 #endif

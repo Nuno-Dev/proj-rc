@@ -8,6 +8,31 @@
 #include <sys/time.h>
 #include <errno.h>
 
+int parseClientCommand(char *command)
+{
+    if (!strcmp(command, "start") || !strcmp(command, "sg"))
+        return START;
+    else if (!strcmp(command, "play") || !strcmp(command, "pl"))
+        return PLAY;
+    else if (!strcmp(command, "guess") || !strcmp(command, "gw"))
+        return GUESS;
+    else if (!strcmp(command, "scoreboard") || !strcmp(command, "sb"))
+        return SCOREBOARD;
+    else if (!strcmp(command, "hint") || !strcmp(command, "h"))
+        return HINT;
+    else if (!strcmp(command, "state") || !strcmp(command, "st"))
+        return STATE;
+    else if (!strcmp(command, "quit"))
+        return QUIT;
+    else if (!strcmp(command, "exit"))
+        return EXIT;
+    else
+    { // No valid command was received
+        fprintf(stderr, "Invalid user command code. Please try again.\n");
+        return INVALID_COMMAND;
+    }
+}
+
 int validRegex(char *buf, char *reg)
 {
     int reti;
@@ -15,7 +40,7 @@ int validRegex(char *buf, char *reg)
     reti = regcomp(&regex, reg, REG_EXTENDED);
     if (reti)
     { // If the regex didn't compile
-        fprintf(stderr, "[-] Internal error on parsing regex. Please try again later and/or contact the developers.\n");
+        fprintf(stderr, "Internal error on parsing regex. Please try again later and/or contact the developers.\n");
         return 0;
     }
     if (regexec(&regex, buf, (size_t)0, NULL, 0))
@@ -75,7 +100,7 @@ int sendTCPMessage(int fd, char *message)
         nSent = write(fd, message + bytesSent, messageLen - bytesSent);
         if (nSent == -1)
         {
-            perror("[-] Failed to write on TCP");
+            perror("Failed to write on TCP");
             return nSent;
         }
         bytesSent += nSent;
@@ -92,7 +117,7 @@ int readTCPMessage(int fd, char *message, int maxSize)
     {
         if (timerOn(fd) == -1)
         {
-            perror("[-] Failed to start TCP timer");
+            perror("Failed to start TCP timer");
             return -1;
         }
         n = read(fd, message + bytesRead, maxSize - bytesRead);
@@ -100,7 +125,7 @@ int readTCPMessage(int fd, char *message, int maxSize)
         // As soon as we read the first byte, turn off timer
         if (timerOff(fd) == -1)
         {
-            perror("[-] Failed to turn off TCP timer");
+            perror("Failed to turn off TCP timer");
             return -1;
         }
 
@@ -112,12 +137,12 @@ int readTCPMessage(int fd, char *message, int maxSize)
         {
             if (errno == EAGAIN || errno == EWOULDBLOCK)
             {
-                perror("[-] TCP socket timed out while reading. Program will now exit.\n");
+                perror("TCP socket timed out while reading. Program will now exit.\n");
                 return 0;
             }
             else
             {
-                perror("[-] Failed to receive from server on TCP");
+                perror("Failed to receive from server on TCP");
                 return n;
             }
         }

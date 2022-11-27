@@ -10,8 +10,8 @@
 #include <errno.h>
 
 /* DS Server information variables */
-extern char GSIP[GS_IP_SIZE] = GS_DEFAULT_IP;
-extern char GSport[GS_PORT_SIZE] = GS_DEFAULT_PORT;
+char GSIP[GS_IP_SIZE] = "tejo.tecnico.ulisboa.pt"; // GS_DEFAULT_IP;
+char GSport[GS_PORT_SIZE] = "58011";               // GS_DEFAULT_PORT;
 
 /* UDP Socket related variables */
 int fdUDP;
@@ -24,7 +24,7 @@ int fdTCP;
 struct addrinfo hintsTCP, *resTCP;
 
 /* Client current session variables */
-int clientSession; // LOGGED_IN or LOGGED_OUT
+int clientSession = LOGGED_OUT;
 char clientPLID[CLIENT_PLID_SIZE];
 
 /* Message to DS via UDP protocol variable */
@@ -39,6 +39,15 @@ int maxNumberTries;
 int currentTrial = 1;
 
 char letterGuess[1];
+
+static void failUDP();
+
+static void errUDP();
+
+static void failTCP();
+
+// static void errTCP();
+
 /**
  ***************************************************************************
  *       UDP connection
@@ -68,10 +77,11 @@ void createUDPSocket()
 void sendUDPMessage(char *message)
 {
     int numTries = MAX_UDP_RECV_TRIES;
+    printf("[DEBUG] Sending message to server: %s\n", clientMessage);
     ssize_t n;
-
     while (numTries-- > 0)
     {
+        printf("[DEBUG] Try number %d\n", MAX_UDP_RECV_TRIES - numTries);
         // Client -> GS message
         n = sendto(fdUDP, message, strlen(message), 0, resUDP->ai_addr, resUDP->ai_addrlen);
         if (n == -1)
@@ -109,6 +119,7 @@ void sendUDPMessage(char *message)
             failUDP();
         }
         serverReply[n - 1] = '\0'; // Remove newline from message
+        printf("[DEBUG] Server reply: %s\n", serverReply);
         processUDPReply(serverReply);
         break;
     }
@@ -128,7 +139,7 @@ void processUDPReply(char *message)
                 currentWord[i] = '_';
             }
             currentWord[strlen(currentWord) - 1] = '\0';
-            printf("New game started (max %s errors): %s\n", maxNumberTries, currentWord);
+            printf("New game started (max %d errors): %s\n", maxNumberTries, currentWord);
         }
         else if (!strcmp(serverStatus, "NOK"))
         {
@@ -155,7 +166,7 @@ void processUDPReply(char *message)
             for (int i = 0; i < n; i++)
             {
                 int position = atoi(pos) - 1; // -1 because of 0-based indexing
-                currentWord[position] = letterGuess;
+                currentWord[position] = letterGuess[0];
                 pos = strtok(NULL, " ");
             }
             currentTrial++;
@@ -168,7 +179,7 @@ void processUDPReply(char *message)
             {
                 if (currentWord[i] == '_')
                 {
-                    currentWord[i] = letterGuess;
+                    currentWord[i] = letterGuess[0];
                 }
             }
             printf("WELL DONE! You guessed: %s\n", currentWord);
@@ -196,117 +207,6 @@ void processUDPReply(char *message)
         else if (!strcmp(serverStatus, "INV"))
         {
             printf("The trial number that you entered is not valid or you have already played a different letter for that trial. Please try again.\n");
-        }
-        else
-        {
-            errUDP();
-        }
-    }
-    else if (!strcmp(serverCommand, "RLO"))
-    { // LOGIN command
-        if (!strcmp(serverStatus, "OK"))
-        {
-            clientSession = LOGGED_IN;
-            printf("You have successfully logged in.\n");
-        }
-        else if (!strcmp(serverStatus, "NOK"))
-        {
-            fprintf(stderr, "Something went wrong with login. Please check user credentials and try again.\n");
-        }
-        else
-        {
-            errUDP();
-        }
-    }
-    else if (!strcmp(serverCommand, "ROU"))
-    { // LOGOUT command
-        if (!strcmp(serverStatus, "OK"))
-        {
-            clientSession = LOGGED_OUT;
-            printf("You have successfully logged out.\n");
-        }
-        else if (!strcmp(serverStatus, "NOK"))
-        {
-            fprintf(stderr, "Something went wrong with logout. Please try again and/or contact the developers.\n");
-        }
-        else
-        {
-            errUDP();
-        }
-    }
-    else if (!strcmp(serverCommand, "RGL"))
-    { // GROUPS command
-        if (isNumber(serverStatus))
-        {
-            displayGroups(message, atoi(serverStatus));
-        }
-        else
-        {
-            errUDP();
-        }
-    }
-    else if (!strcmp(serverCommand, "RGS"))
-    { // SUBSCRIBE command
-        if (!strcmp(serverStatus, "OK"))
-        {
-            printf("You have successfully subscribed to this group.\n");
-        }
-        else if (!strcmp(serverStatus, "NEW"))
-        {
-            char newGID[DS_GID_SIZE];
-            strncpy(newGID, message + 8, 2); // copy the new group ID : len(RGS NEW ) = 8
-            newGID[DS_GID_SIZE - 1] = '\0';
-            printf("You have successfully created a new group (ID = %s).\n", newGID);
-        }
-        else if (!strcmp(serverStatus, "E_FULL"))
-        {
-            fprintf(stderr, "Group creation has failed. Maximum number of groups has been reached.\n");
-        }
-        else if (!strcmp(serverStatus, "E_USR"))
-        {
-            fprintf(stderr, "UID submitted to server is incorrect. Please try again and/or contact the developers.\n");
-        }
-        else if (!strcmp(serverStatus, "E_GRP"))
-        {
-            fprintf(stderr, "Group ID submitted is invalid. Please check available groups using 'gl' command and try again.\n");
-        }
-        else if (!strcmp(serverStatus, "E_GNAME"))
-        {
-            fprintf(stderr, "Group name submitted is invalid. Please try again.\n");
-        }
-        else if (!strcmp(serverStatus, "NOK"))
-        {
-            fprintf(stderr, "The group subscribing process has failed. Please try again.\n");
-        }
-        else
-        {
-            errUDP();
-        }
-    }
-    else if (!strcmp(serverCommand, "RGU"))
-    { // UNSUBSCRIBE command
-        if (!strcmp(serverStatus, "OK"))
-        {
-            printf("You have successfully unsubscribed to this group.\n");
-        }
-        else if (!strcmp(serverStatus, "E_USR"))
-        {
-            fprintf(stderr, "UID submitted to server is incorrect. Please try again and/or contact the developers.\n");
-        }
-        else if (!strcmp(serverStatus, "E_GRP"))
-        {
-            fprintf(stderr, "Invalid given group ID. Please check available groups using 'gl' command and try again.\n");
-        }
-        else
-        {
-            errUDP();
-        }
-    }
-    else if (!strcmp(serverCommand, "RGM"))
-    { // MY_GROUPS command
-        if (isNumber(serverStatus))
-        {
-            displayGroups(message, atoi(serverStatus));
         }
         else
         {
@@ -359,7 +259,7 @@ void connectTCPSocket()
     if (n == -1)
     {
         perror("Failed to connect to TCP socket");
-        failDSTCP();
+        failTCP();
     }
 }
 
@@ -370,11 +270,11 @@ static void failTCP()
     exit(EXIT_FAILURE);
 }
 
-static void errTCP()
+/*static void errTCP()
 {
     fprintf(stderr, "Wrong protocol message received from server via TCP. Program will now exit.\n");
     failTCP();
-}
+}*/
 
 /**
  ***************************************************************************

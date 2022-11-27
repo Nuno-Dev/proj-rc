@@ -24,4 +24,12 @@ int sendTCPMessage(int fd, char *message);
 
 int receiveTCPMessage(int fd, char *message);
 
+int timerOn(int fd);
+
+int timerOff(int fd);
+
+void closeUDPSocket(int fdUDP, struct addrinfo *resUDP);
+
+void closeTCPSocket(int fdTCP, struct addrinfo *resTCP);
+
 #endif
