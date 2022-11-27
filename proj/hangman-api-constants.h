@@ -34,6 +34,10 @@
 #define QUIT 7
 #define EXIT 8
 
+/* State of the current client connection */
+#define LOGGED_OUT 0
+#define LOGGED_IN 1
+
 /* Max number of tries to recover packets that were sent via UDP protocol */
 #define MAX_UDP_RECV_TRIES 3
 
@@ -43,6 +47,12 @@
 #define CLIENT_MESSAGE_UDP_SIZE 40
 
 #define SERVER_MESSAGE_UDP_SIZE 4096
+
+/* The buffer size for a protocol message code */
+#define SERVER_COMMAND_SIZE 4
+
+/* The buffer size for a protocol message status via UDP protocol */
+#define SERVER_STATUS_SIZE 8
 
 #define CLIENT_PUID_SIZE 6
 
