@@ -28,9 +28,9 @@ int clientSession = LOGGED_OUT;
 char clientPLID[CLIENT_PLID_SIZE];
 
 /* Message to DS via UDP protocol variable */
-char clientMessage[CLIENT_MESSAGE_UDP_SIZE];
+char clientMessage[CLIENT_MESSAGE_UDP_SIZE] = {'\0'};
 
-char currentWord[MAX_WORD_LENGTH_SIZE];
+char currentWord[MAX_WORD_LENGTH_SIZE] = {'\0'};
 
 int wordLength;
 
@@ -77,7 +77,7 @@ void createUDPSocket()
 void sendUDPMessage(char *message)
 {
     int numTries = MAX_UDP_RECV_TRIES;
-    printf("[DEBUG] Sending message to server: %s\n", clientMessage);
+    printf("[DEBUG] Sending message to server: %s, size %ld\n", message, strlen(message));
     ssize_t n;
     while (numTries-- > 0)
     {
@@ -112,6 +112,7 @@ void sendUDPMessage(char *message)
             perror("Failed to reset read timeout on UDP socket");
             failUDP();
         }
+        printf("[DEBUG] Server reply: %s\n", serverReply);
         serverReply[n] = '\0';
         if (serverReply[n - 1] != '\n')
         { // Each request/reply must end with newline according to the protocol
@@ -119,7 +120,6 @@ void sendUDPMessage(char *message)
             failUDP();
         }
         serverReply[n - 1] = '\0'; // Remove newline from message
-        printf("[DEBUG] Server reply: %s\n", serverReply);
         processUDPReply(serverReply);
         break;
     }
@@ -133,6 +133,7 @@ void processUDPReply(char *message)
     { // START response
         if (!strcmp(serverStatus, "OK"))
         {
+            clientSession = LOGGED_IN;
             sscanf(message, "%*s %*s %d %d", &wordLength, &maxNumberTries);
             for (int i = 0; i < wordLength; i++)
             {
