@@ -32,7 +32,9 @@ char clientMessage[CLIENT_MESSAGE_UDP_SIZE] = {'\0'};
 
 char currentWord[MAX_WORD_LENGTH_SIZE] = {'\0'};
 
-char wordWithSpaces[MAX_WORD_LENGTH_SIZE] = {'\0'};
+char currentWordWithSpaces[MAX_WORD_LENGTH_SIZE] = {'\0'};
+
+char guessedWord[MAX_WORD_LENGTH_SIZE] = {'\0'};
 
 int wordLength;
 
@@ -56,11 +58,11 @@ char *getCurrentWordWithSpaces()
     int i;
     for (i = 0; i < wordLength; i++)
     {
-        wordWithSpaces[i * 2] = currentWord[i];
-        wordWithSpaces[i * 2 + 1] = ' ';
+        currentWordWithSpaces[i * 2] = currentWord[i];
+        currentWordWithSpaces[i * 2 + 1] = ' ';
     }
-    wordWithSpaces[wordLength * 2] = '\0';
-    return wordWithSpaces;
+    currentWordWithSpaces[wordLength * 2] = '\0';
+    return currentWordWithSpaces;
 }
 
 /**
@@ -182,7 +184,7 @@ void processUDPReply(char *message)
             {
                 pos = strtok(NULL, " ");
             }
-            // get all positions and store currentLetter in those positions of wordGuess
+            // get all positions and store currentLetter in those positions of guessedWord
             for (int i = 0; i < n; i++)
             {
                 int position = atoi(pos) - 1; // -1 because of 0-based indexing
@@ -194,7 +196,7 @@ void processUDPReply(char *message)
         }
         else if (!strcmp(serverStatus, "WIN"))
         {
-            // iterate through wordGuess and if the letter is '_' then change it to letterGuess
+            // iterate through guessedWord and if the letter is '_' then change it to letterGuess
             for (int i = 0; i < wordLength; i++)
             {
                 if (currentWord[i] == '_')
@@ -218,6 +220,51 @@ void processUDPReply(char *message)
         else if (!strcmp(serverStatus, "OVR"))
         {
             printf("No, '%c' is not part of the word: %s\n", letterGuess[0], getCurrentWordWithSpaces());
+            printf("GAME OVER! You lost because you reached the maximum failed attempts of %d. Better luck next time!\n", maxNumberTries);
+            clientSession = LOGGED_OUT;
+            memset(clientPLID, 0, sizeof(clientPLID));
+        }
+        else if (!strcmp(serverStatus, "INV"))
+        {
+            printf("The trial number that you entered is not valid or you have already played a different letter for that trial. Please try again.\n");
+        }
+        else
+        {
+            errUDP();
+        }
+    }
+    else if (!strcmp(serverCommand, "RWG"))
+    { // Guess response
+        if (!strcmp(serverStatus, "WIN"))
+        {
+            // iterate through guessedWord and if the letter is '_' then change it to letterGuess
+            for (int i = 0; i < wordLength; i++)
+            {
+                if (currentWord[i] == '_')
+                {
+                    currentWord[i] = letterGuess[0];
+                }
+            }
+            // guessedWordWithSpaces = guessedWord with spaces in between
+            char guessedWordWithSpaces[strlen(guessedWord) * 2];
+            for (int i = 0; i < strlen(guessedWord); i++)
+            {
+                guessedWordWithSpaces[i * 2] = guessedWord[i];
+                guessedWordWithSpaces[i * 2 + 1] = ' ';
+            }
+            guessedWordWithSpaces[strlen(guessedWord) * 2] = '\0';
+            printf("WELL DONE! You guessed: %s\n", guessedWordWithSpaces);
+            clientSession = LOGGED_OUT;
+            memset(clientPLID, 0, sizeof(clientPLID));
+        }
+        else if (!strcmp(serverStatus, "NOK"))
+        {
+            printf("No, '%s' is not the correct word: %s\n", guessedWord, getCurrentWordWithSpaces());
+            currentTrial++;
+        }
+        else if (!strcmp(serverStatus, "OVR"))
+        {
+            printf("No, '%s' is not the correct word: %s\n", guessedWord, getCurrentWordWithSpaces());
             printf("GAME OVER! You lost because you reached the maximum failed attempts of %d. Better luck next time!\n", maxNumberTries);
             clientSession = LOGGED_OUT;
             memset(clientPLID, 0, sizeof(clientPLID));
@@ -304,7 +351,7 @@ void clientStart(char **tokenList, int numTokens)
 {
     if (clientSession == LOGGED_IN)
     {
-        printf("You already have a playing session undergoing. Use command <play>.\n");
+        fprintf(stderr, "You already have a playing session undergoing. Please use command <play> and try again.\n");
         return;
     }
     if (numTokens != 2)
@@ -318,6 +365,7 @@ void clientStart(char **tokenList, int numTokens)
         return;
     }
     currentTrial = 1;
+    //
     strcpy(clientPLID, tokenList[1]);
     sprintf(clientMessage, "SNG %s\n", tokenList[1]);
     sendUDPMessage(clientMessage, START);
@@ -327,7 +375,7 @@ void clientPlay(char **tokenList, int numTokens)
 {
     if (clientSession == LOGGED_OUT)
     {
-        printf("You don't have a current gaming session. Use command <start> to start a new session.\n");
+        fprintf(stderr, "You're not playing any session. Please use <start> command and try again.\n");
         return;
     }
 
@@ -351,7 +399,7 @@ void clientGuess(char **tokenList, int numTokens)
 {
     if (clientSession == LOGGED_OUT)
     { // Client does not have a playing session
-        fprintf(stderr, "You're not playing any session. Please try again.\n");
+        fprintf(stderr, "You're not playing any session. Please use <start> command and try again.\n");
         return;
     }
     if (numTokens != 2)
@@ -364,8 +412,9 @@ void clientGuess(char **tokenList, int numTokens)
         fprintf(stderr, "Invalid guess command arguments. Please check given word and try again.\n");
         return;
     }
-    strcpy(letterGuess, tokenList[1]);
-    sprintf(clientMessage, "PWG %s\n", tokenList[1]);
+    // GUESS PLID word trial
+    strcpy(guessedWord, tokenList[1]);
+    sprintf(clientMessage, "PWG %s %s %d\n", clientPLID, tokenList[1], currentTrial);
     sendUDPMessage(clientMessage, GUESS);
 }
 

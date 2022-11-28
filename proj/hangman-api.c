@@ -91,7 +91,7 @@ int isValidPlay(char *play)
 
 int isValidGuess(char *guess)
 {
-    return validRegex(guess, "^[a-zA-Z]+$");
+    return strlen(guess) <= MAX_WORD_LENGTH_SIZE && validRegex(guess, "^[a-zA-Z]+$");
 }
 
 int sendTCPMessage(int fd, char *message)
