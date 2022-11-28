@@ -173,11 +173,11 @@ void processUDPReply(char *message)
         if (!strcmp(serverStatus, "OK"))
         {
             int n;
-            sscanf(message, "%*s %*s %d %d", &currentTrial);
+            sscanf(message, "%*s %*s %d %d", &currentTrial, &n);
             // get pos1 pos2 ... posn from "RLG status trial n pos1 pos2 ... posn"
-            printf("N value = %d", n);
             char *pos = strtok(message, " ");
-            for (int i = 0; i < 5; i++)
+            // remove 4 first tokens
+            for (int i = 0; i < 4; i++)
             {
                 pos = strtok(NULL, " ");
             }
