@@ -22,7 +22,7 @@ void clientHint(int numTokens);
 void clientState(int numTokens);
 void clientQuit(int numTokens);
 void clientExit(int numTokens);
-void clientKillGame(int numTokens);
-void clientKillDirectory(int numTokens);
+void clientKillGame(char **tokenList, int numTokens);
+void clientKillDirectory(char **tokenList, int numTokens);
 
 #endif

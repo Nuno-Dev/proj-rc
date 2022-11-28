@@ -50,7 +50,7 @@ static void failTCP();
 
 // static void errTCP();
 
-// function to return currentWord with spaces between them
+// Returns currentWord with spaces between them
 char *getCurrentWordWithSpaces()
 {
     int i;
@@ -92,7 +92,7 @@ void createUDPSocket()
 void sendUDPMessage(char *message, int command)
 {
     int numTries = MAX_UDP_RECV_TRIES;
-    printf("[DEBUG] Sending message to server: %s, size %ld\n", message, strlen(message));
+    printf("[DEBUG] Sending message to server: %s", message);
     ssize_t n;
     while (numTries-- > 0)
     {
@@ -218,8 +218,7 @@ void processUDPReply(char *message)
         else if (!strcmp(serverStatus, "OVR"))
         {
             printf("No, '%c' is not part of the word: %s\n", letterGuess[0], getCurrentWordWithSpaces());
-            printf("GAME OVER! You lost.");
-            closeTCPSocket(fdTCP, resTCP);
+            printf("GAME OVER! You lost because you reached the maximum failed attempts of %d. Better luck next time!\n", maxNumberTries);
             clientSession = LOGGED_OUT;
             memset(clientPLID, 0, sizeof(clientPLID));
         }
@@ -451,7 +450,7 @@ void clientQuit(int numTokens)
     sendUDPMessage(clientMessage, QUIT);
     closeTCPSocket(fdTCP, resTCP);
     if (clientSession == LOGGED_OUT)
-    { // The exchangeDSUDPMsg function sets the client session to LOGGED_OUT if reply is OK
+    { // The sendUDPMessage function sets the client session to LOGGED_OUT if reply is OK
         memset(clientPLID, 0, sizeof(clientPLID));
     }
     printf("Quitting...\n");
@@ -472,26 +471,36 @@ void clientExit(int numTokens)
     exit(EXIT_SUCCESS);
 }
 
-void clientKillGame(int numTokens)
+void clientKillGame(char **tokenList, int numTokens)
 {
-    if (numTokens != 1)
-    { // killgame
+    if (numTokens != 2)
+    { // killgame PLID
         fprintf(stderr, "Incorrect kill game command usage. Please try again.\n");
         return;
     }
-    sprintf(clientMessage, "KILLGAME 099292\n");
+    if (!isValidPLID(tokenList[1]))
+    { // Protocol validation
+        fprintf(stderr, "Invalid start killgame arguments. Please check given PLID and try again.\n");
+        return;
+    }
+    sprintf(clientMessage, "KILLGAME %s\n", tokenList[1]);
     sendUDPMessage(clientMessage, KILLGAME);
     printf("Game session killed...\n");
 }
 
-void clientKillDirectory(int numTokens)
+void clientKillDirectory(char **tokenList, int numTokens)
 {
-    if (numTokens != 1)
-    { // killdirectory
+    if (numTokens != 2)
+    { // killdirectory PLID
         fprintf(stderr, "Incorrect kill directory command usage. Please try again.\n");
         return;
     }
-    sprintf(clientMessage, "KILLPDIR 099292\n");
+    if (!isValidPLID(tokenList[1]))
+    { // Protocol validation
+        fprintf(stderr, "Invalid killdirectory arguments. Please check given PLID and try again.\n");
+        return;
+    }
+    sprintf(clientMessage, "KILLPDIR %s\n", tokenList[1]);
     sendUDPMessage(clientMessage, KILLPDIR);
     printf("Directory killed...\n");
 }

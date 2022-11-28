@@ -99,10 +99,10 @@ void processInput()
             clientExit(numTokens);
             break;
         case KILLGAME:
-            clientKillGame(numTokens);
+            clientKillGame(tokenList, numTokens);
             break;
         case KILLPDIR:
-            clientKillDirectory(numTokens);
+            clientKillDirectory(tokenList, numTokens);
             break;
         default:
             break;
