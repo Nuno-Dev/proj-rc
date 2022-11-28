@@ -32,6 +32,8 @@ char clientMessage[CLIENT_MESSAGE_UDP_SIZE] = {'\0'};
 
 char currentWord[MAX_WORD_LENGTH_SIZE] = {'\0'};
 
+char wordWithSpaces[MAX_WORD_LENGTH_SIZE] = {'\0'};
+
 int wordLength;
 
 int maxNumberTries;
@@ -51,7 +53,6 @@ static void failTCP();
 // function to return currentWord with spaces between them
 char *getCurrentWordWithSpaces()
 {
-    char *wordWithSpaces = malloc(sizeof(char) * (wordLength * 2));
     int i;
     for (i = 0; i < wordLength; i++)
     {
@@ -185,11 +186,9 @@ void processUDPReply(char *message)
             for (int i = 0; i < n; i++)
             {
                 int position = atoi(pos) - 1; // -1 because of 0-based indexing
-                printf("position %d = %d", i, position);
                 currentWord[position] = letterGuess[0];
                 pos = strtok(NULL, " ");
             }
-
             currentTrial++;
             printf("Yes, '%c' is part of the word: %s\n", letterGuess[0], getCurrentWordWithSpaces());
         }
@@ -203,15 +202,7 @@ void processUDPReply(char *message)
                     currentWord[i] = letterGuess[0];
                 }
             }
-            char printWord[MAX_WORD_LENGTH_SIZE * 2];
-            for (int i = 0; i < wordLength; i++)
-            {
-                printWord[i * 2] = currentWord[i];
-                printWord[i * 2 + 1] = ' ';
-            }
-            printWord[wordLength * 2] = '\0';
-            printf("WELL DONE! You guessed: %s\n", printWord);
-            closeTCPSocket(fdTCP, resTCP);
+            printf("WELL DONE! You guessed: %s\n", getCurrentWordWithSpaces());
             clientSession = LOGGED_OUT;
             memset(clientPLID, 0, sizeof(clientPLID));
         }
@@ -314,7 +305,7 @@ void clientStart(char **tokenList, int numTokens)
 {
     if (clientSession == LOGGED_IN)
     {
-        printf("You already have a playing session undergoing. If you want to play a new game, please use command <quit>.\n");
+        printf("You already have a playing session undergoing. Use command <play>.\n");
         return;
     }
     if (numTokens != 2)
@@ -335,6 +326,12 @@ void clientStart(char **tokenList, int numTokens)
 
 void clientPlay(char **tokenList, int numTokens)
 {
+    if (clientSession == LOGGED_OUT)
+    {
+        printf("You don't have a current gaming session. Use command <start> to start a new session.\n");
+        return;
+    }
+
     if (numTokens != 2)
     { // play/pl LETTER
         fprintf(stderr, "Incorrect play command usage. Please try again.\n");

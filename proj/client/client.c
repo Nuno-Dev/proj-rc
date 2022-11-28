@@ -64,7 +64,7 @@ void processInput()
         char commandTok[CLIENT_COMMAND_SIZE]; // We must preserve command so perform token separation here
         strcpy(commandTok, command);
         token = strtok(commandTok, " ");
-        if (token[0] == '\n') // user presses enter without input
+        if (token[0] == '\n') // user presses enter without input ro
             continue;
         while (token)
         {
