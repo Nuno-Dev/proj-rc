@@ -33,6 +33,8 @@
 #define STATE 6
 #define QUIT 7
 #define EXIT 8
+#define KILLGAME 9
+#define KILLPDIR 10
 
 /* State of the current client connection */
 #define LOGGED_OUT 0

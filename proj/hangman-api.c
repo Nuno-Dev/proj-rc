@@ -26,6 +26,10 @@ int parseClientCommand(char *command)
         return QUIT;
     else if (!strcmp(command, "exit"))
         return EXIT;
+    else if (!strcmp(command, "killgame"))
+        return KILLGAME;
+    else if (!strcmp(command, "killpdir"))
+        return KILLPDIR;
     else
     { // No valid command was received
         fprintf(stderr, "Invalid user command code. Please try again.\n");

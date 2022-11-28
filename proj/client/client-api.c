@@ -48,6 +48,20 @@ static void failTCP();
 
 // static void errTCP();
 
+// function to return currentWord with spaces between them
+char *getCurrentWordWithSpaces()
+{
+    char *wordWithSpaces = malloc(sizeof(char) * (wordLength * 2));
+    int i;
+    for (i = 0; i < wordLength; i++)
+    {
+        wordWithSpaces[i * 2] = currentWord[i];
+        wordWithSpaces[i * 2 + 1] = ' ';
+    }
+    wordWithSpaces[wordLength * 2] = '\0';
+    return wordWithSpaces;
+}
+
 /**
  ***************************************************************************
  *       UDP connection
@@ -74,14 +88,13 @@ void createUDPSocket()
     }
 }
 
-void sendUDPMessage(char *message)
+void sendUDPMessage(char *message, int command)
 {
     int numTries = MAX_UDP_RECV_TRIES;
     printf("[DEBUG] Sending message to server: %s, size %ld\n", message, strlen(message));
     ssize_t n;
     while (numTries-- > 0)
     {
-        printf("[DEBUG] Try number %d\n", MAX_UDP_RECV_TRIES - numTries);
         // Client -> GS message
         n = sendto(fdUDP, message, strlen(message), 0, resUDP->ai_addr, resUDP->ai_addrlen);
         if (n == -1)
@@ -89,6 +102,9 @@ void sendUDPMessage(char *message)
             perror("UDP message failed to send");
             failUDP();
         }
+        // dont wait for reply from GS if command == KILLGAME or KILLPDIR
+        if (command == KILLGAME || command == KILLPDIR)
+            return;
         // Start recvfrom timer
         if (timerOn(fdUDP) == -1)
         {
@@ -112,7 +128,6 @@ void sendUDPMessage(char *message)
             perror("Failed to reset read timeout on UDP socket");
             failUDP();
         }
-        printf("[DEBUG] Server reply: %s\n", serverReply);
         serverReply[n] = '\0';
         if (serverReply[n - 1] != '\n')
         { // Each request/reply must end with newline according to the protocol
@@ -129,6 +144,8 @@ void processUDPReply(char *message)
 {
     char serverCommand[SERVER_COMMAND_SIZE], serverStatus[SERVER_STATUS_SIZE];
     sscanf(message, "%s %s", serverCommand, serverStatus);
+    printf("[DEBUG] Server reply: %s\n", message);
+
     if (!strcmp(serverCommand, "RSG"))
     { // START response
         if (!strcmp(serverStatus, "OK"))
@@ -139,8 +156,8 @@ void processUDPReply(char *message)
             {
                 currentWord[i] = '_';
             }
-            currentWord[strlen(currentWord) - 1] = '\0';
-            printf("New game started (max %d errors): %s\n", maxNumberTries, currentWord);
+            currentWord[wordLength] = '\0';
+            printf("New game started (max %d errors): %s\n", maxNumberTries, getCurrentWordWithSpaces());
         }
         else if (!strcmp(serverStatus, "NOK"))
         {
@@ -156,8 +173,9 @@ void processUDPReply(char *message)
         if (!strcmp(serverStatus, "OK"))
         {
             int n;
-            sscanf(message, "%*s %*s %d", &n);
+            sscanf(message, "%*s %*s %d %d", &currentTrial);
             // get pos1 pos2 ... posn from "RLG status trial n pos1 pos2 ... posn"
+            printf("N value = %d", n);
             char *pos = strtok(message, " ");
             for (int i = 0; i < 5; i++)
             {
@@ -167,11 +185,13 @@ void processUDPReply(char *message)
             for (int i = 0; i < n; i++)
             {
                 int position = atoi(pos) - 1; // -1 because of 0-based indexing
+                printf("position %d = %d", i, position);
                 currentWord[position] = letterGuess[0];
                 pos = strtok(NULL, " ");
             }
+
             currentTrial++;
-            printf("Yes, '%s' is part of the word: %s\n", letterGuess, currentWord);
+            printf("Yes, '%c' is part of the word: %s\n", letterGuess[0], getCurrentWordWithSpaces());
         }
         else if (!strcmp(serverStatus, "WIN"))
         {
@@ -183,7 +203,14 @@ void processUDPReply(char *message)
                     currentWord[i] = letterGuess[0];
                 }
             }
-            printf("WELL DONE! You guessed: %s\n", currentWord);
+            char printWord[MAX_WORD_LENGTH_SIZE * 2];
+            for (int i = 0; i < wordLength; i++)
+            {
+                printWord[i * 2] = currentWord[i];
+                printWord[i * 2 + 1] = ' ';
+            }
+            printWord[wordLength * 2] = '\0';
+            printf("WELL DONE! You guessed: %s\n", printWord);
             closeTCPSocket(fdTCP, resTCP);
             clientSession = LOGGED_OUT;
             memset(clientPLID, 0, sizeof(clientPLID));
@@ -194,12 +221,12 @@ void processUDPReply(char *message)
         }
         else if (!strcmp(serverStatus, "NOK"))
         {
-            printf("No, '%s' is not part of the word: %s\n", letterGuess, currentWord);
+            printf("No, '%c' is not part of the word: %s\n", letterGuess[0], getCurrentWordWithSpaces());
             currentTrial++;
         }
         else if (!strcmp(serverStatus, "OVR"))
         {
-            printf("No, '%s' is not part of the word: %s\n", letterGuess, currentWord);
+            printf("No, '%c' is not part of the word: %s\n", letterGuess[0], getCurrentWordWithSpaces());
             printf("GAME OVER! You lost.");
             closeTCPSocket(fdTCP, resTCP);
             clientSession = LOGGED_OUT;
@@ -303,16 +330,11 @@ void clientStart(char **tokenList, int numTokens)
     currentTrial = 1;
     strcpy(clientPLID, tokenList[1]);
     sprintf(clientMessage, "SNG %s\n", tokenList[1]);
-    sendUDPMessage(clientMessage);
+    sendUDPMessage(clientMessage, START);
 }
 
 void clientPlay(char **tokenList, int numTokens)
 {
-    if (clientSession == LOGGED_OUT)
-    { // Client does not have a playing session
-        fprintf(stderr, "You're not playing any session. Please try again.\n");
-        return;
-    }
     if (numTokens != 2)
     { // play/pl LETTER
         fprintf(stderr, "Incorrect play command usage. Please try again.\n");
@@ -324,8 +346,9 @@ void clientPlay(char **tokenList, int numTokens)
         return;
     }
     // PLG PLID letter trial
+    strcpy(letterGuess, tokenList[1]);
     sprintf(clientMessage, "PLG %s %s %d\n", clientPLID, tokenList[1], currentTrial);
-    sendUDPMessage(clientMessage);
+    sendUDPMessage(clientMessage, PLAY);
 }
 
 void clientGuess(char **tokenList, int numTokens)
@@ -347,7 +370,7 @@ void clientGuess(char **tokenList, int numTokens)
     }
     strcpy(letterGuess, tokenList[1]);
     sprintf(clientMessage, "PWG %s\n", tokenList[1]);
-    sendUDPMessage(clientMessage);
+    sendUDPMessage(clientMessage, GUESS);
 }
 
 void clientScoreboard(int numTokens)
@@ -428,7 +451,7 @@ void clientQuit(int numTokens)
         return;
     }
     sprintf(clientMessage, "QUT\n");
-    sendUDPMessage(clientMessage);
+    sendUDPMessage(clientMessage, QUIT);
     closeTCPSocket(fdTCP, resTCP);
     if (clientSession == LOGGED_OUT)
     { // The exchangeDSUDPMsg function sets the client session to LOGGED_OUT if reply is OK
@@ -445,9 +468,33 @@ void clientExit(int numTokens)
         return;
     }
     sprintf(clientMessage, "QUT\n");
-    sendUDPMessage(clientMessage);
+    sendUDPMessage(clientMessage, EXIT);
     closeTCPSocket(fdTCP, resTCP);
     closeUDPSocket(fdUDP, resUDP);
     printf("Exiting...\n");
     exit(EXIT_SUCCESS);
+}
+
+void clientKillGame(int numTokens)
+{
+    if (numTokens != 1)
+    { // killgame
+        fprintf(stderr, "Incorrect kill game command usage. Please try again.\n");
+        return;
+    }
+    sprintf(clientMessage, "KILLGAME 099292\n");
+    sendUDPMessage(clientMessage, KILLGAME);
+    printf("Game session killed...\n");
+}
+
+void clientKillDirectory(int numTokens)
+{
+    if (numTokens != 1)
+    { // killdirectory
+        fprintf(stderr, "Incorrect kill directory command usage. Please try again.\n");
+        return;
+    }
+    sprintf(clientMessage, "KILLPDIR 099292\n");
+    sendUDPMessage(clientMessage, KILLPDIR);
+    printf("Directory killed...\n");
 }

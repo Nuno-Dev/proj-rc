@@ -10,7 +10,7 @@ extern char GSport[GS_PORT_SIZE];
 
 void createUDPSocket();
 
-void sendUDPMessage(char *message);
+void sendUDPMessage(char *message, int command);
 
 void processUDPReply(char *message);
 
@@ -22,5 +22,7 @@ void clientHint(int numTokens);
 void clientState(int numTokens);
 void clientQuit(int numTokens);
 void clientExit(int numTokens);
+void clientKillGame(int numTokens);
+void clientKillDirectory(int numTokens);
 
 #endif
