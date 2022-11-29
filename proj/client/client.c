@@ -64,9 +64,8 @@ void processInput()
         char commandTok[CLIENT_COMMAND_SIZE]; // We must preserve command so perform token separation here
         strcpy(commandTok, command);
         token = strtok(commandTok, " ");
-        // not allow empty input
         if (token == NULL)
-        {
+        { // dont allow empty input
             printf("Invalid user command. Please try again.\n");
             continue;
         }

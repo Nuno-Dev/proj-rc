@@ -1,26 +1,24 @@
-# Makefile RC 2021/2022 (Grupo 18) @ IST
-
 # Compiler and flags
 CC=gcc
 CFLAGS= -Wall -g
 
 # Executables' names
-CLIENT_EXEC = user
-#SERVER_EXEC = DS
+CLIENT_EXEC = player
+#SERVER_EXEC = server
 
 # Object directory's name
-ODIR = obj
+ODIR = objects
 
 # Common dependencies
-DEPS = hangman-api.h hangman-api-constants.h
+DEPS = common.h constants.h
 # Add client dependencies
 DEPS += client/client-api.h
 # Add server dependencies
 #DEPS += server/server-api.h server/ds-api/ds-operations.h server/ds-api/ds-udpandtcp.h
 
-_OBJ1 += hangman-api.o client.o client-api.o 
+_OBJ1 += common.o client.o client-api.o 
 OBJ1 = $(patsubst %,$(ODIR)/%,$(_OBJ1))
-#_OBJ2 += hangman-api.o server.o server-api.o ds-operations.o ds-udpandtcp.o
+#_OBJ2 += common.o server.o server-api.o ds-operations.o ds-udpandtcp.o
 #OBJ2 = $(patsubst %,$(ODIR)/%,$(_OBJ2))
 
 
@@ -42,6 +40,12 @@ $(CLIENT_EXEC): $(OBJ1)
 #	$(info To run server -> ./$(SERVER_EXEC) [-p DSport] [-v])
 
 
+# compile src
+
+$(ODIR)/%.o: %.c $(DEPS)
+	@mkdir -p $(@D)
+	@$(CC) $(CFLAGS) -c -o $@ $< 
+
 # Create .o for all .c inside the client directory
 $(ODIR)/%.o: client/%.c $(DEPS)
 	@mkdir -p $(@D)
@@ -60,5 +64,5 @@ $(ODIR)/%.o: client/%.c $(DEPS)
 # Delete the objects' directory and both executables
 clean:
 	@rm -rf $(ODIR)
-	@rm -f *~ core $(INCDIR)/*~ $(CLIENT_EXEC) #$(SERVER_EXEC)
+	@rm -f *~ core $(INCDIR)/*~ $(CLIENT_EXEC)
 	$(info Cleaned successfully!)
