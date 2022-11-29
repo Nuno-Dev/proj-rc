@@ -1,5 +1,5 @@
 #include "client-api.h"
-#include "../hangman-api-constants.h"
+#include "../constants.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>

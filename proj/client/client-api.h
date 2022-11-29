@@ -1,8 +1,8 @@
-#ifndef HANGMAN_CLIENT_API_H
-#define HANGMAN_CLIENT_API_H
+#ifndef CLIENT_API_H
+#define CLIENT_API_H
 
-#include "../hangman-api.h"
-#include "../hangman-api-constants.h"
+#include "../common.h"
+#include "../constants.h"
 
 /* GS Server information variables */
 extern char GSIP[GS_IP_SIZE];

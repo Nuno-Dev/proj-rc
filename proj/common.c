@@ -1,5 +1,5 @@
-#include "hangman-api.h"
-#include "hangman-api-constants.h"
+#include "common.h"
+#include "constants.h"
 
 #include <regex.h>
 #include <stdio.h>

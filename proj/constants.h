@@ -1,5 +1,5 @@
-#ifndef HANGMAN_API_CONSTANTS_H
-#define HANGMAN_API_CONSTANTS_H
+#ifndef CONSTANTS_H
+#define CONSTANTS_H
 
 /* Preprocessed macro to determine min(x,y) */
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
