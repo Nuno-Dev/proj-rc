@@ -22,7 +22,7 @@ int isValidGuess(char *guess);
 
 int sendTCPMessage(int fd, char *message);
 
-int receiveTCPMessage(int fd, char *message);
+int readTCPMessage(int fd, char *message, int maxSize);
 
 int timerOn(int fd);
 

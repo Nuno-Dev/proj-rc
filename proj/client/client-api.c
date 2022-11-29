@@ -51,7 +51,7 @@ static void errUDP();
 
 static void failTCP();
 
-// static void errTCP();
+static void errTCP();
 
 // Returns currentWord with spaces between them
 char *getCurrentWordWithSpaces()
@@ -334,7 +334,7 @@ void connectTCPSocket()
     int errcode = getaddrinfo(GSIP, GSport, &hintsTCP, &resTCP);
     if (errcode != 0)
     {
-        perror("Failed on TCP address translation");
+        perror("Failed to translate TCP address");
         close(fdTCP);
         failUDP();
     }
@@ -347,6 +347,100 @@ void connectTCPSocket()
     TCPConnection = ON;
 }
 
+void processTCPReply(int command)
+{
+    if (command == SCOREBOARD)
+    {
+        // Read message from Server
+        int lenMsg = TCP_MESSAGE_READ_BUFFER_SIZE;
+        char *tmp = (char *)calloc(sizeof(char), lenMsg + 1);
+        if (tmp == NULL)
+        {
+            fprintf(stderr, "Failed to allocate memory in calloc.\n");
+            closeTCPSocket(fdTCP, resTCP);
+            return;
+        }
+        char *p_message = tmp;
+        char readBuffer[TCP_MESSAGE_READ_BUFFER_SIZE];
+        int n, bytesRead = 0;
+        // read all data from server
+        while ((n = read(fdTCP, readBuffer, TCP_MESSAGE_READ_BUFFER_SIZE)) > 0)
+        {
+            bytesRead += n;
+            if (bytesRead > lenMsg)
+            {
+                lenMsg += TCP_MESSAGE_READ_BUFFER_SIZE;
+                tmp = (char *)realloc(tmp, lenMsg + 1);
+                if (tmp == NULL)
+                {
+                    fprintf(stderr, "Failed to allocate memory in realloc.\n");
+                    closeTCPSocket(fdTCP, resTCP);
+                    return;
+                }
+                p_message = tmp + bytesRead - n;
+            }
+            memcpy(p_message, readBuffer, n);
+            p_message += n;
+            if (readBuffer[n - 1] == '\0')
+            {
+                break;
+            }
+        }
+        if (n == -1)
+        {
+            perror("Failed to read from TCP socket");
+            closeTCPSocket(fdTCP, resTCP);
+            return;
+        }
+        // Process message (RSB status [Fname Fsize Fdata])
+        char *token = strtok(tmp, " ");
+        char *serverCommand = token;
+        token = strtok(NULL, " ");
+        char *serverStatus = token;
+        if (!strcmp(serverCommand, "RSB"))
+        {
+            if (!strcmp(serverStatus, "OK"))
+            {
+                token = strtok(NULL, " ");
+                char *fileName = token;
+                token = strtok(NULL, " ");
+                char *fileSize = token;
+                int fileSizeInt = atoi(fileSize);
+                char *fileData = token + strlen(fileSize) + 1;
+                fileData[fileSizeInt] = '\0';
+                // Write file to disk
+                FILE *fp;
+                fp = fopen(fileName, "w");
+                if (fp == NULL)
+                {
+                    perror("Failed to open file");
+                    closeTCPSocket(fdTCP, resTCP);
+                    return;
+                }
+                fwrite(fileData, 1, fileSizeInt, fp);
+                fclose(fp);
+                printf("Scoreboard:\n");
+                printf("-----------\n");
+                printf("%s", fileData);
+            }
+            else if (!strcmp(serverStatus, "ERR"))
+            {
+                printf("No scoreboard file was found on the server.\n");
+            }
+            else
+            {
+                errTCP();
+            }
+        }
+        else
+        {
+            errTCP();
+        }
+        free(tmp);
+        closeTCPSocket(fdTCP, resTCP);
+    }
+}
+
 static void failTCP()
 {
     closeUDPSocket(fdUDP, resUDP);
@@ -354,11 +448,11 @@ static void failTCP()
     exit(EXIT_FAILURE);
 }
 
-/*static void errTCP()
+static void errTCP()
 {
     fprintf(stderr, "Wrong protocol message received from server via TCP. Program will now exit.\n");
     failTCP();
-}*/
+}
 
 /**
  ***************************************************************************
@@ -448,14 +542,12 @@ void clientScoreboard(int numTokens)
 
     connectTCPSocket();
     sprintf(clientMessage, "GSB\n");
+    printf("[DEBUG] [TCP] Sending message: %s", clientMessage);
     if (sendTCPMessage(fdTCP, clientMessage) == -1)
     {
         failTCP();
     }
-
-    /******************************************************/
-    /* GET RESPONSE FROM SERVER AND PROCESS THAT RESPONSE*/
-    /******************************************************/
+    processTCPReply(SCOREBOARD);
 }
 
 void clientHint(int numTokens)

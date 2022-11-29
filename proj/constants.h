@@ -60,6 +60,10 @@
 
 #define MAX_WORD_LENGTH_SIZE 30
 
+#define TCP_MESSAGE_READ_BUFFER_SIZE 512
+
+#define FILE_NAME_SIZE 1024
+
 /* TCP connection */
 #define ON 1
 
