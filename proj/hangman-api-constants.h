@@ -60,4 +60,9 @@
 
 #define MAX_WORD_LENGTH_SIZE 30
 
+/* TCP connection */
+#define ON 1
+
+#define OFF 0
+
 #endif

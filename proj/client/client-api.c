@@ -22,6 +22,7 @@ socklen_t addrlenUDP;
 /* TCP Socket related variables */
 int fdTCP;
 struct addrinfo hintsTCP, *resTCP;
+int TCPConnection = OFF;
 
 /* Client current session variables */
 int clientSession = LOGGED_OUT;
@@ -105,7 +106,7 @@ void sendUDPMessage(char *message, int command)
             perror("UDP message failed to send");
             failUDP();
         }
-        // dont wait for reply from GS if command == KILLGAME or KILLPDIR
+        // dont wait for reply from GS if command == KILLGAME or KILLPDIR or Exit
         if (command == KILLGAME || command == KILLPDIR)
             return;
         // Start recvfrom timer
@@ -278,6 +279,23 @@ void processUDPReply(char *message)
             errUDP();
         }
     }
+    else if (!strcmp(serverCommand, "RQT"))
+    { // Quit/Exit response
+        if (!strcmp(serverStatus, "OK"))
+        {
+            clientSession = LOGGED_OUT;
+            memset(clientPLID, 0, sizeof(clientPLID));
+            printf("You quit the game successfully.\n");
+        }
+        else if (!strcmp(serverStatus, "ERR"))
+        {
+            printf("You currently don't have an open gaming session. Please use <start> command to start a new session.\n");
+        }
+        else
+        {
+            errUDP();
+        }
+    }
     else
     { // Unexpected protocol DS reply was made
         errUDP();
@@ -326,6 +344,7 @@ void connectTCPSocket()
         perror("Failed to connect to TCP socket");
         failTCP();
     }
+    TCPConnection = ON;
 }
 
 static void failTCP()
@@ -349,11 +368,7 @@ static void failTCP()
 
 void clientStart(char **tokenList, int numTokens)
 {
-    if (clientSession == LOGGED_IN)
-    {
-        fprintf(stderr, "You already have a playing session undergoing. Please use command <play> and try again.\n");
-        return;
-    }
+
     if (numTokens != 2)
     { // start/sg PLID
         fprintf(stderr, "Incorrect start command usage. Please try again.\n");
@@ -364,8 +379,13 @@ void clientStart(char **tokenList, int numTokens)
         fprintf(stderr, "Invalid start command arguments. Please check given PLID and try again.\n");
         return;
     }
+    if (clientSession == LOGGED_IN)
+    {
+        fprintf(stderr, "You already have a playing session undergoing. Please use command <play> and try again.\n");
+        return;
+    }
+    // SNG PLID
     currentTrial = 1;
-    //
     strcpy(clientPLID, tokenList[1]);
     sprintf(clientMessage, "SNG %s\n", tokenList[1]);
     sendUDPMessage(clientMessage, START);
@@ -373,12 +393,6 @@ void clientStart(char **tokenList, int numTokens)
 
 void clientPlay(char **tokenList, int numTokens)
 {
-    if (clientSession == LOGGED_OUT)
-    {
-        fprintf(stderr, "You're not playing any session. Please use <start> command and try again.\n");
-        return;
-    }
-
     if (numTokens != 2)
     { // play/pl LETTER
         fprintf(stderr, "Incorrect play command usage. Please try again.\n");
@@ -389,6 +403,11 @@ void clientPlay(char **tokenList, int numTokens)
         fprintf(stderr, "Invalid play command arguments. Please check given input and try again.\n");
         return;
     }
+    if (clientSession == LOGGED_OUT)
+    {
+        fprintf(stderr, "You're not playing any session. Please use <start> command and try again.\n");
+        return;
+    }
     // PLG PLID letter trial
     strcpy(letterGuess, tokenList[1]);
     sprintf(clientMessage, "PLG %s %s %d\n", clientPLID, tokenList[1], currentTrial);
@@ -397,11 +416,7 @@ void clientPlay(char **tokenList, int numTokens)
 
 void clientGuess(char **tokenList, int numTokens)
 {
-    if (clientSession == LOGGED_OUT)
-    { // Client does not have a playing session
-        fprintf(stderr, "You're not playing any session. Please use <start> command and try again.\n");
-        return;
-    }
+
     if (numTokens != 2)
     { // guess/gw WORD
         fprintf(stderr, "Incorrect guess command usage. Please try again.\n");
@@ -410,6 +425,11 @@ void clientGuess(char **tokenList, int numTokens)
     if (!isValidGuess(tokenList[1]))
     { // Protocol validation
         fprintf(stderr, "Invalid guess command arguments. Please check given word and try again.\n");
+        return;
+    }
+    if (clientSession == LOGGED_OUT)
+    { // Client does not have a playing session
+        fprintf(stderr, "You're not playing any session. Please use <start> command and try again.\n");
         return;
     }
     // GUESS PLID word trial
@@ -440,17 +460,17 @@ void clientScoreboard(int numTokens)
 
 void clientHint(int numTokens)
 {
-    if (clientSession == LOGGED_OUT)
-    { // Client does not have a playing session
-        fprintf(stderr, "You're not playing any session. Please try again.\n");
-        return;
-    }
+
     if (numTokens != 1)
     { // hint/h
         fprintf(stderr, "Incorrect hint command usage. Please try again.\n");
         return;
     }
-
+    if (clientSession == LOGGED_OUT)
+    { // Client does not have a playing session
+        fprintf(stderr, "You're not playing any session. Please try again.\n");
+        return;
+    }
     connectTCPSocket();
     sprintf(clientMessage, "GHL\n");
     if (sendTCPMessage(fdTCP, clientMessage) == -1)
@@ -485,24 +505,24 @@ void clientState(int numTokens)
 
 void clientQuit(int numTokens)
 {
-    if (clientSession == LOGGED_OUT)
-    { // Client does not have a playing session
-        fprintf(stderr, "You're not playing any session. Please try again.\n");
-        return;
-    }
     if (numTokens != 1)
     { // quit
         fprintf(stderr, "Incorrect quit command usage. Please try again.\n");
         return;
     }
-    sprintf(clientMessage, "QUT\n");
-    sendUDPMessage(clientMessage, QUIT);
-    closeTCPSocket(fdTCP, resTCP);
     if (clientSession == LOGGED_OUT)
-    { // The sendUDPMessage function sets the client session to LOGGED_OUT if reply is OK
-        memset(clientPLID, 0, sizeof(clientPLID));
+    { // Client does not have a playing session
+        fprintf(stderr, "You're not playing any session. Please try again.\n");
+        return;
     }
     printf("Quitting...\n");
+    sprintf(clientMessage, "QUT %s\n", clientPLID);
+    sendUDPMessage(clientMessage, QUIT);
+    if (TCPConnection == ON)
+    {
+        closeTCPSocket(fdTCP, resTCP);
+        TCPConnection = OFF;
+    }
 }
 
 void clientExit(int numTokens)
@@ -512,11 +532,21 @@ void clientExit(int numTokens)
         fprintf(stderr, "Incorrect exit command usage. Please try again.\n");
         return;
     }
-    sprintf(clientMessage, "QUT\n");
-    sendUDPMessage(clientMessage, EXIT);
-    closeTCPSocket(fdTCP, resTCP);
-    closeUDPSocket(fdUDP, resUDP);
+    if (clientSession == LOGGED_OUT)
+    { // Client does not have a playing session
+        printf("Exiting...\n");
+        closeUDPSocket(fdUDP, resUDP);
+        exit(EXIT_SUCCESS);
+    }
     printf("Exiting...\n");
+    sprintf(clientMessage, "QUT %s\n", clientPLID);
+    sendUDPMessage(clientMessage, EXIT);
+    if (TCPConnection == ON)
+    {
+        closeTCPSocket(fdTCP, resTCP);
+        TCPConnection = OFF;
+    }
+    closeUDPSocket(fdUDP, resUDP);
     exit(EXIT_SUCCESS);
 }
 

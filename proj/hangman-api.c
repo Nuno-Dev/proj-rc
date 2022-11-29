@@ -32,7 +32,7 @@ int parseClientCommand(char *command)
         return KILLPDIR;
     else
     { // No valid command was received
-        fprintf(stderr, "Invalid user command code. Please try again.\n");
+        fprintf(stderr, "Invalid user command. Please try again.\n");
         return INVALID_COMMAND;
     }
 }

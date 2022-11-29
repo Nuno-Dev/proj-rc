@@ -10,7 +10,7 @@ static void parseArgs(int argc, char *argv[])
 {
     if (!(argc == 1 || argc == 3 || argc == 5))
     { // Usage: ./player [-n GSIP] [-p GSport]
-        fprintf(stderr, "[-] Invalid client program arguments. Usage: ./player [-n GSIP] [-p GSport]\n");
+        fprintf(stderr, "Invalid client program arguments. Usage: ./player [-n GSIP] [-p GSport]\n");
         exit(EXIT_FAILURE);
     }
     for (int i = 1; i < argc; ++i)
@@ -25,7 +25,7 @@ static void parseArgs(int argc, char *argv[])
                 strcpy(GSIP, argv[i + 1]);
             else
             {
-                fprintf(stderr, "[-] Invalid GS hostname/IP address given. Please try again.\n");
+                fprintf(stderr, "Invalid GS hostname/IP address given. Please try again.\n");
                 exit(EXIT_FAILURE);
             }
             break;
@@ -34,12 +34,12 @@ static void parseArgs(int argc, char *argv[])
                 strcpy(GSport, argv[i + 1]);
             else
             {
-                fprintf(stderr, "[-] Invalid GS port given. Please try again.\n");
+                fprintf(stderr, "Invalid GS port given. Please try again.\n");
                 exit(EXIT_FAILURE);
             }
             break;
         default:
-            fprintf(stderr, "[-] Invalid flag given. Usage: ./player [-n GSIP] [-p GSport]\n");
+            fprintf(stderr, "Invalid flag given. Usage: ./player [-n GSIP] [-p GSport]\n");
             exit(EXIT_FAILURE);
         }
     }
@@ -64,8 +64,12 @@ void processInput()
         char commandTok[CLIENT_COMMAND_SIZE]; // We must preserve command so perform token separation here
         strcpy(commandTok, command);
         token = strtok(commandTok, " ");
-        if (token[0] == '\n') // user presses enter without input ro
+        // not allow empty input
+        if (token == NULL)
+        {
+            printf("Invalid user command. Please try again.\n");
             continue;
+        }
         while (token)
         {
             tokenList[numTokens++] = token;
