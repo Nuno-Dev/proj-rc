@@ -95,7 +95,6 @@ void createUDPSocket()
 void sendUDPMessage(char *message, int command)
 {
     int numTries = MAX_UDP_RECV_TRIES;
-    printf("[DEBUG] Sending message to server: %s", message);
     ssize_t n;
     while (numTries-- > 0)
     {
@@ -148,7 +147,6 @@ void processUDPReply(char *message)
 {
     char serverCommand[SERVER_COMMAND_SIZE], serverStatus[SERVER_STATUS_SIZE];
     sscanf(message, "%s %s", serverCommand, serverStatus);
-    printf("[DEBUG] Server reply: %s\n", message);
 
     if (!strcmp(serverCommand, "RSG"))
     { // START response
@@ -347,104 +345,207 @@ void connectTCPSocket()
     TCPConnection = ON;
 }
 
-void processTCPReply(int command)
+void processTCPReply()
 {
-    if (command == SCOREBOARD)
+    // Read message from Server
+    int lenMsg = TCP_MESSAGE_READ_BUFFER_SIZE;
+    char *tmp = (char *)calloc(sizeof(char), lenMsg + 1);
+    if (tmp == NULL)
     {
-        // Read message from Server
-        int lenMsg = TCP_MESSAGE_READ_BUFFER_SIZE;
-        char *tmp = (char *)calloc(sizeof(char), lenMsg + 1);
-        if (tmp == NULL)
+        fprintf(stderr, "Failed to allocate memory in calloc.\n");
+        closeTCPSocket(fdTCP, resTCP);
+        TCPConnection = OFF;
+        return;
+    }
+    char *p_message = tmp;
+    char readBuffer[TCP_MESSAGE_READ_BUFFER_SIZE];
+    int n, bytesRead = 0;
+    // read all data from server
+    while ((n = read(fdTCP, readBuffer, TCP_MESSAGE_READ_BUFFER_SIZE)) > 0)
+    {
+        bytesRead += n;
+        if (bytesRead > lenMsg)
         {
-            fprintf(stderr, "Failed to allocate memory in calloc.\n");
-            closeTCPSocket(fdTCP, resTCP);
-            return;
+            lenMsg += TCP_MESSAGE_READ_BUFFER_SIZE;
+            tmp = (char *)realloc(tmp, lenMsg + 1);
+            if (tmp == NULL)
+            {
+                fprintf(stderr, "Failed to allocate memory in realloc.\n");
+                closeTCPSocket(fdTCP, resTCP);
+                TCPConnection = OFF;
+                return;
+            }
+            p_message = tmp + bytesRead - n;
         }
-        char *p_message = tmp;
-        char readBuffer[TCP_MESSAGE_READ_BUFFER_SIZE];
-        int n, bytesRead = 0;
-        // read all data from server
-        while ((n = read(fdTCP, readBuffer, TCP_MESSAGE_READ_BUFFER_SIZE)) > 0)
+        memcpy(p_message, readBuffer, n);
+        p_message += n;
+        if (readBuffer[n - 1] == '\0')
         {
-            bytesRead += n;
-            if (bytesRead > lenMsg)
-            {
-                lenMsg += TCP_MESSAGE_READ_BUFFER_SIZE;
-                tmp = (char *)realloc(tmp, lenMsg + 1);
-                if (tmp == NULL)
-                {
-                    fprintf(stderr, "Failed to allocate memory in realloc.\n");
-                    closeTCPSocket(fdTCP, resTCP);
-                    return;
-                }
-                p_message = tmp + bytesRead - n;
-            }
-            memcpy(p_message, readBuffer, n);
-            p_message += n;
-            if (readBuffer[n - 1] == '\0')
-            {
-                break;
-            }
+            break;
         }
-        if (n == -1)
+    }
+    if (n == -1)
+    {
+        perror("Failed to read from TCP socket");
+        closeTCPSocket(fdTCP, resTCP);
+        TCPConnection = OFF;
+        return;
+    }
+    char *token = strtok(tmp, " ");
+    char *serverCommand = token;
+    token = strtok(NULL, " ");
+    char *serverStatus = token;
+    if (!strcmp(serverCommand, "RSB"))
+    // Process message (RSB status [Fname Fsize Fdata])
+    {
+        if (!strcmp(serverStatus, "OK"))
         {
-            perror("Failed to read from TCP socket");
-            closeTCPSocket(fdTCP, resTCP);
-            return;
+            token = strtok(NULL, " ");
+            char *fileName = token;
+            token = strtok(NULL, " ");
+            char *fileSize = token;
+            int fileSizeInt = atoi(fileSize);
+            char *fileData = token + strlen(fileSize) + 1;
+            fileData[fileSizeInt] = '\0';
+            // Save file in current directory
+            FILE *fp;
+            fp = fopen(fileName, "w");
+            if (fp == NULL)
+            {
+                perror("Failed to open file");
+                closeTCPSocket(fdTCP, resTCP);
+                TCPConnection = OFF;
+                return;
+            }
+            fwrite(fileData, 1, fileSizeInt, fp);
+            fclose(fp);
+            printf("Scoreboard received successfuly! File name: %s File size: %d\n", fileName, fileSizeInt);
+            printf("%s", fileData);
         }
-        // Process message (RSB status [Fname Fsize Fdata])
-        char *token = strtok(tmp, " ");
-        char *serverCommand = token;
-        token = strtok(NULL, " ");
-        char *serverStatus = token;
-        if (!strcmp(serverCommand, "RSB"))
+        else if (!strcmp(serverStatus, "ERR"))
         {
-            if (!strcmp(serverStatus, "OK"))
-            {
-                token = strtok(NULL, " ");
-                char *fileName = token;
-                token = strtok(NULL, " ");
-                char *fileSize = token;
-                int fileSizeInt = atoi(fileSize);
-                char *fileData = token + strlen(fileSize) + 1;
-                fileData[fileSizeInt] = '\0';
-                // Write file to disk
-                FILE *fp;
-                fp = fopen(fileName, "w");
-                if (fp == NULL)
-                {
-                    perror("Failed to open file");
-                    closeTCPSocket(fdTCP, resTCP);
-                    return;
-                }
-                fwrite(fileData, 1, fileSizeInt, fp);
-                fclose(fp);
-                printf("Scoreboard:\n");
-                printf("-----------\n");
-                printf("%s", fileData);
-            }
-            else if (!strcmp(serverStatus, "ERR"))
-            {
-                printf("No scoreboard file was found on the server.\n");
-            }
-            else
-            {
-                errTCP();
-            }
+            printf("No scoreboard file was found on the server.\n");
         }
         else
         {
             errTCP();
         }
-        free(tmp);
-        closeTCPSocket(fdTCP, resTCP);
     }
+    else if (!strcmp(serverCommand, "RHL"))
+    // Process message (RHL status [Fname Fsize Fdata])
+    {
+        if (!strcmp(serverStatus, "OK"))
+        {
+            token = strtok(NULL, " ");
+            char *fileName = token;
+            token = strtok(NULL, " ");
+            char *fileSize = token;
+            int fileSizeInt = atoi(fileSize);
+            char *fileData = token + strlen(fileSize) + 1;
+            fileData[fileSizeInt] = '\0';
+            // Save file in current directory
+            FILE *fp;
+            fp = fopen(fileName, "w");
+            if (fp == NULL)
+            {
+                perror("Failed to open file");
+                closeTCPSocket(fdTCP, resTCP);
+                TCPConnection = OFF;
+                return;
+            }
+            fwrite(fileData, 1, fileSizeInt, fp);
+            fclose(fp);
+            printf("Hint received successfuly! File name: %s File size: %d\n", fileName, fileSizeInt);
+        }
+        else if (!strcmp(serverStatus, "NOK"))
+        {
+            printf("There is no hint available at the moment. Please try again later.\n");
+        }
+        else if (!strcmp(serverStatus, "ERR"))
+        {
+            printf("Some problem occured. Please try again.\n");
+        }
+        else
+        {
+            errTCP();
+        }
+    }
+    else if (!strcmp(serverCommand, "RST"))
+    // Process message (RST status [Fname Fsize Fdata])
+    {
+        if (!strcmp(serverStatus, "ACT"))
+        {
+            token = strtok(NULL, " ");
+            char *fileName = token;
+            token = strtok(NULL, " ");
+            char *fileSize = token;
+            int fileSizeInt = atoi(fileSize);
+            char *fileData = token + strlen(fileSize) + 1;
+            fileData[fileSizeInt] = '\0';
+            // Save file in current directory
+            FILE *fp;
+            fp = fopen(fileName, "w");
+            if (fp == NULL)
+            {
+                perror("Failed to open file");
+                closeTCPSocket(fdTCP, resTCP);
+                TCPConnection = OFF;
+                return;
+            }
+            fclose(fp);
+            printf("State received successfuly! File name: %s File size: %d\n", fileName, fileSizeInt);
+            printf("%s", fileData);
+        }
+        else if (!strcmp(serverStatus, "FIN"))
+        {
+            token = strtok(NULL, " ");
+            char *fileName = token;
+            token = strtok(NULL, " ");
+            char *fileSize = token;
+            int fileSizeInt = atoi(fileSize);
+            char *fileData = token + strlen(fileSize) + 1;
+            fileData[fileSizeInt] = '\0';
+            // Save file in current directory
+            FILE *fp;
+            fp = fopen(fileName, "w");
+            if (fp == NULL)
+            {
+                perror("Failed to open file");
+                closeTCPSocket(fdTCP, resTCP);
+                TCPConnection = OFF;
+                return;
+            }
+            fclose(fp);
+            printf("State received successfuly! File name: %s File size: %d\n", fileName, fileSizeInt);
+            printf("%s", fileData);
+        }
+        else if (!strcmp(serverStatus, "NOK"))
+        {
+            printf("You don't have any active or finished games. To play use command <start> and try again.\n");
+        }
+        else if (!strcmp(serverStatus, "ERR"))
+        {
+            printf("Some problem occured. Please try again.\n");
+        }
+        else
+        {
+            errTCP();
+        }
+    }
+    else
+    {
+        errTCP();
+    }
+    free(tmp);
+    closeTCPSocket(fdTCP, resTCP);
+    TCPConnection = OFF;
 }
 
 static void failTCP()
 {
     closeUDPSocket(fdUDP, resUDP);
     closeTCPSocket(fdTCP, resTCP);
+    TCPConnection = OFF;
     exit(EXIT_FAILURE);
 }
 
@@ -499,7 +600,7 @@ void clientPlay(char **tokenList, int numTokens)
     }
     if (clientSession == LOGGED_OUT)
     {
-        fprintf(stderr, "You're not playing any session. Please use <start> command and try again.\n");
+        fprintf(stderr, "You don't have an ongoing playing session. Please use <start> command and try again.\n");
         return;
     }
     // PLG PLID letter trial
@@ -523,7 +624,7 @@ void clientGuess(char **tokenList, int numTokens)
     }
     if (clientSession == LOGGED_OUT)
     { // Client does not have a playing session
-        fprintf(stderr, "You're not playing any session. Please use <start> command and try again.\n");
+        fprintf(stderr, "You don't have an ongoing playing session. Please use <start> command and use <start> command and try again.\n");
         return;
     }
     // GUESS PLID word trial
@@ -542,12 +643,11 @@ void clientScoreboard(int numTokens)
 
     connectTCPSocket();
     sprintf(clientMessage, "GSB\n");
-    printf("[DEBUG] [TCP] Sending message: %s", clientMessage);
     if (sendTCPMessage(fdTCP, clientMessage) == -1)
     {
         failTCP();
     }
-    processTCPReply(SCOREBOARD);
+    processTCPReply();
 }
 
 void clientHint(int numTokens)
@@ -560,19 +660,16 @@ void clientHint(int numTokens)
     }
     if (clientSession == LOGGED_OUT)
     { // Client does not have a playing session
-        fprintf(stderr, "You're not playing any session. Please try again.\n");
+        fprintf(stderr, "You don't have an ongoing playing session. Please use <start> command and try again.\n");
         return;
     }
     connectTCPSocket();
-    sprintf(clientMessage, "GHL\n");
+    sprintf(clientMessage, "GHL %s\n", clientPLID);
     if (sendTCPMessage(fdTCP, clientMessage) == -1)
     {
         failTCP();
     }
-
-    /******************************************************/
-    /* GET RESPONSE FROM SERVER AND PROCESS THAT RESPONSE*/
-    /******************************************************/
+    processTCPReply();
 }
 
 void clientState(int numTokens)
@@ -582,17 +679,18 @@ void clientState(int numTokens)
         fprintf(stderr, "Incorrect state command usage. Please try again.\n");
         return;
     }
-
+    if (clientSession == LOGGED_OUT)
+    { // Client does not have a playing session
+        fprintf(stderr, "You don't have an ongoing playing session. Please use <start> command and try again.\n");
+        return;
+    }
     connectTCPSocket();
-    sprintf(clientMessage, "STA\n");
+    sprintf(clientMessage, "STA %s\n", clientPLID);
     if (sendTCPMessage(fdTCP, clientMessage) == -1)
     {
         failTCP();
     }
-
-    /******************************************************/
-    /* GET RESPONSE FROM SERVER AND PROCESS THAT RESPONSE*/
-    /******************************************************/
+    processTCPReply();
 }
 
 void clientQuit(int numTokens)
@@ -604,7 +702,7 @@ void clientQuit(int numTokens)
     }
     if (clientSession == LOGGED_OUT)
     { // Client does not have a playing session
-        fprintf(stderr, "You're not playing any session. Please try again.\n");
+        fprintf(stderr, "You don't have an ongoing playing session. Please use <start> command and try again.\n");
         return;
     }
     printf("Quitting...\n");
