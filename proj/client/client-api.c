@@ -419,7 +419,7 @@ void processTCPReply()
             }
             fwrite(fileData, 1, fileSizeInt, fp);
             fclose(fp);
-            printf("Scoreboard received successfuly! File name: %s File size: %d\n", fileName, fileSizeInt);
+            printf("Scoreboard received successfuly! File name: %s File size: %d bytes.\n", fileName, fileSizeInt);
             printf("%s", fileData);
         }
         else if (!strcmp(serverStatus, "ERR"))
@@ -455,7 +455,7 @@ void processTCPReply()
             }
             fwrite(fileData, 1, fileSizeInt, fp);
             fclose(fp);
-            printf("Hint received successfuly! File name: %s File size: %d\n", fileName, fileSizeInt);
+            printf("Hint received successfuly! File name: %s File size: %d bytes.\n", fileName, fileSizeInt);
         }
         else if (!strcmp(serverStatus, "NOK"))
         {
@@ -493,7 +493,7 @@ void processTCPReply()
                 return;
             }
             fclose(fp);
-            printf("State received successfuly! File name: %s File size: %d\n", fileName, fileSizeInt);
+            printf("State received successfuly! File name: %s File size: %d bytes.\n", fileName, fileSizeInt);
             printf("%s", fileData);
         }
         else if (!strcmp(serverStatus, "FIN"))
@@ -516,7 +516,7 @@ void processTCPReply()
                 return;
             }
             fclose(fp);
-            printf("State received successfuly! File name: %s File size: %d\n", fileName, fileSizeInt);
+            printf("State received successfuly! File name: %s File size: %d bytes.\n", fileName, fileSizeInt);
             printf("%s", fileData);
         }
         else if (!strcmp(serverStatus, "NOK"))
