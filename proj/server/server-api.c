@@ -8,7 +8,7 @@
 #include <fcntl.h>
 #include <dirent.h>
 
-char *processClientUDP(char *message)
+char *processServerUDP(char *message)
 {
     char *token, *tokenList[CLIENT_NUMTOKENS];
     int numTokens = 0;
@@ -20,32 +20,20 @@ char *processClientUDP(char *message)
         tokenList[numTokens++] = token;
         token = strtok(NULL, " ");
     }
-    cmd = parseDSClientCommand(tokenList[0]);
+    cmd = parseServerCommand(tokenList[0]);
     switch (cmd)
     {
-    case REGISTER:
-        response = clientRegister(tokenList, numTokens);
+    case START:
+        response = processServerStart(tokenList, numTokens);
         break;
-    case UNREGISTER:
-        response = clientUnregister(tokenList, numTokens);
+    case PLAY:
+        response = processServerPlay(tokenList, numTokens);
         break;
-    case LOGIN:
-        response = clientLogin(tokenList, numTokens);
+    case GUESS:
+        response = processServerGuess(tokenList, numTokens);
         break;
-    case LOGOUT:
-        response = clientLogout(tokenList, numTokens);
-        break;
-    case GROUPS:
-        response = listDSGroups(numTokens);
-        break;
-    case SUBSCRIBE:
-        response = clientSubscribeGroup(tokenList, numTokens);
-        break;
-    case UNSUBSCRIBE:
-        response = clientUnsubscribeGroup(tokenList, numTokens);
-        break;
-    case MY_GROUPS:
-        response = listClientDSGroups(tokenList, numTokens);
+    case QUIT:
+        response = processServerQuit(tokenList, numTokens);
         break;
     default:
         response = strdup(ERROR_MSG);
@@ -54,19 +42,19 @@ char *processClientUDP(char *message)
     return response;
 }
 
-void processClientTCP(int fd, char *command)
+void processServerTCP(int fd, char *command)
 {
-    int cmd = parseDSClientCommand(command);
+    int cmd = parseServerCommand(command);
     switch (cmd)
     {
-    case ULIST:
-        showClientsInGroup(fd);
+    case SCOREBOARD:
+        processServerScoreboard(fd);
         break;
-    case POST:
-        clientPostInGroup(fd);
+    case HINT:
+        processServerHint(fd);
         break;
-    case RETRIEVE:
-        retrieveMessagesFromGroup(fd);
+    case STATE:
+        processServerState(fd);
         break;
     default:
         if (sendTCP(fd, ERROR_MSG) == -1)
@@ -77,34 +65,22 @@ void processClientTCP(int fd, char *command)
     }
 }
 
-static char *createServerReplyUDP(int command, char *status)
+static char *getServerReplyUDP(int command, char *status)
 {
     char message[SERVER_MESSAGE_UDP_SIZE];
     switch (command)
     {
-    case REGISTER:
-        sprintf(message, "RRG %s\n", status);
+    case START:
+        sprintf(message, "RSG %s\n", status);
         break;
-    case UNREGISTER:
-        sprintf(message, "RUN %s\n", status);
+    case PLAY:
+        sprintf(message, "RLG %s\n", status);
         break;
-    case LOGIN:
-        sprintf(message, "RLO %s\n", status);
+    case GUESS:
+        sprintf(message, "RWG %s\n", status);
         break;
-    case LOGOUT:
-        sprintf(message, "ROU %s\n", status);
-        break;
-    case GROUPS:
-        sprintf(message, "RGL %s\n", status);
-        break;
-    case SUBSCRIBE:
-        sprintf(message, "RGS %s\n", status);
-        break;
-    case UNSUBSCRIBE:
-        sprintf(message, "RGU %s\n", status);
-        break;
-    case MY_GROUPS:
-        sprintf(message, "RGM %s\n", status);
+    case QUIT:
+        sprintf(message, "RQT %s\n", status);
         break;
     }
     return strdup(message);
@@ -115,27 +91,27 @@ static void sendServerStatusTCP(int fd, int command, char *status)
     char message[SERVER_TCP_STATUS_SIZE];
     switch (command)
     {
-    case ULIST:
+    case SCOREBOARD:
         if (!strcmp(status, "NOK"))
         {
             sprintf(message, "RUL NOK\n");
         }
         else
         {
-            sprintf(message, "RUL %s", status);
+            sprintf(message, "RSB %s", status);
         }
         break;
-    case POST:
-        sprintf(message, "RPT %s\n", status);
+    case HINT:
+        sprintf(message, "RHL %s\n", status);
         break;
-    case RETRIEVE:
+    case STATE:
         if (!strcmp(status, "NOK") || !strcmp(status, "EOF"))
         {
             sprintf(message, "RRT %s\n", status);
         }
         else
         {
-            sprintf(message, "RRT %s", status);
+            sprintf(message, "RST %s", status);
         }
     }
     if (sendTCP(fd, message) == -1)

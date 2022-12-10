@@ -11,8 +11,9 @@ int isValidAddress(char *address);
 
 int isValidPort(char *port);
 
-/* Parse client commands */
 int parseClientCommand(char *command);
+
+int parseServerCommand(char *command);
 
 int isValidPLID(char *PLID);
 

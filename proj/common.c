@@ -37,6 +37,29 @@ int parseClientCommand(char *command)
     }
 }
 
+int parseServerCommand(char *command)
+{
+    if (!strcmp(command, "SNG"))
+        return START;
+    else if (!strcmp(command, "PLG"))
+        return PLAY;
+    else if (!strcmp(command, "PWG"))
+        return GUESS;
+    else if (!strcmp(command, "GSB"))
+        return SCOREBOARD;
+    else if (!strcmp(command, "GHL"))
+        return HINT;
+    else if (!strcmp(command, "STA"))
+        return STATE;
+    else if (!strcmp(command, "QUT"))
+        return QUIT;
+    else
+    { // No valid command was received
+        fprintf(stderr, "Invalid user command code.\n");
+        return INVALID_COMMAND;
+    }
+}
+
 int validRegex(char *buf, char *reg)
 {
     int reti;

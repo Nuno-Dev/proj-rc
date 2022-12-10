@@ -64,4 +64,5 @@ $(ODIR)/%.o: server/server-utils/%.c $(DEPS)
 clean:
 	@rm -rf $(ODIR)
 	@rm -f *~ core $(INCDIR)/*~ $(CLIENT_EXEC) $(SERVER_EXEC)
+	@rm -f *.txt *.jpg *.png
 	$(info Cleaned successfully!)

@@ -39,7 +39,7 @@ static void parseArgs(int argc, char *argv[])
         switch (argv[i][1])
         {
         case 'p':
-            if (validPort(argv[i + 1]))
+            if (isValidPort(argv[i + 1]))
             {
                 strcpy(portGS, argv[i + 1]);
             }
@@ -66,12 +66,12 @@ int main(int argc, char *argv[])
     // Have 2 separate processes handling different operations
     pid_t pid = fork();
     if (pid == 0)
-    { // Set child process to handle UDP operations
-        handleServerTCP();
+    { // Set child process to initiate UDP operations
+        initiateServerTCP();
     }
     else if (pid > 0)
-    { // Set parent process to handle TCP operations
-        handleServerUDP();
+    { // Set parent process to initiate TCP operations
+        initiateServerUDP();
     }
     else
     {

@@ -5,8 +5,8 @@
 #include "../constants.h"
 #include "../common.h"
 
-char *processClientUDP(char *message);
+char *processServerUDP(char *message);
 
-void processClientTCP(int fd, char *command);
+void processServerTCP(int fd, char *command);
 
 #endif

@@ -12,8 +12,8 @@ void createUDPTCPConnections();
 
 void logVerbose(char *clientBuf, struct sockaddr_in s);
 
-void handleServerUDP();
+void initiateServerUDP();
 
-void handleServerTCP();
+void initiateServerTCP();
 
 #endif

@@ -114,15 +114,15 @@ void createUDPTCPConnections()
         closeTCPSocket(fdTCP, resTCP);
         exit(EXIT_FAILURE);
     }
-    printf("[+] DS server started @ %s.\n[!] Currently listening in port %s for UDP and TCP connections...\n\n", hostname, portGS);
+    printf("[+] DS server started @ %s.\nCurrently listening in port %s for UDP and TCP connections...\n\n", hostname, portGS);
 }
 
 void logVerbose(char *clientBuf, struct sockaddr_in s)
 {
-    printf("[!] Client @ %s in port %d sent: %s\n", inet_ntoa(s.sin_addr), ntohs(s.sin_port), clientBuf);
+    printf("Client @ %s in port %d sent: %s\n", inet_ntoa(s.sin_addr), ntohs(s.sin_port), clientBuf);
 }
 
-void handleServerUDP()
+void initiateServerUDP()
 {
     char clientBuf[CLIENT_MESSAGE_UDP_SIZE];
     char *serverBuf;
@@ -153,8 +153,8 @@ void handleServerUDP()
         char commandCode[SERVER_COMMAND_SIZE];
         strncpy(commandCode, clientBuf, SERVER_COMMAND_SIZE - 1);
         commandCode[SERVER_COMMAND_SIZE - 1] = '\0';
-        printf("[!] Client @ %s:%d sent %s command.\n", inet_ntoa(cliaddr.sin_addr), ntohs(cliaddr.sin_port), commandCode);
-        serverBuf = processClientUDP(clientBuf);
+        printf("Client @ %s:%d sent %s command.\n", inet_ntoa(cliaddr.sin_addr), ntohs(cliaddr.sin_port), commandCode);
+        serverBuf = processServerUDP(clientBuf);
         n = sendto(fdUDP, serverBuf, strlen(serverBuf), 0, (struct sockaddr *)&cliaddr, addrlen);
         if (n == -1)
         {
@@ -167,17 +167,17 @@ void handleServerUDP()
     }
 }
 
-void handleServerTCP()
+void initiateServerTCP()
 {
     struct sockaddr_in cliaddr;
     socklen_t addrlen;
-    int newDSFDTCP;
+    int newFdTCP;
     pid_t pid;
     int ret;
     while (1)
     {
         addrlen = sizeof(cliaddr);
-        if ((newDSFDTCP = accept(fdTCP, (struct sockaddr *)&cliaddr, &addrlen)) == -1)
+        if ((newFdTCP = accept(fdTCP, (struct sockaddr *)&cliaddr, &addrlen)) == -1)
         { // If this connect failed to accept let's continue to try to look for new ones
             continue;
         }
@@ -185,27 +185,27 @@ void handleServerTCP()
         {
             close(fdTCP);
             char commandCode[SERVER_COMMAND_SIZE];
-            int n = readTCP(newDSFDTCP, commandCode, SERVER_COMMAND_SIZE);
+            int n = readTCP(newFdTCP, commandCode, SERVER_COMMAND_SIZE);
             if (n == -1)
             {
-                close(newDSFDTCP);
+                close(newFdTCP);
                 exit(EXIT_FAILURE);
             }
             if (commandCode[SERVER_COMMAND_SIZE - 1] != ' ')
             { // Protocol is (XXX )
-                sendTCP(newDSFDTCP, ERROR_MSG);
-                close(newDSFDTCP);
+                sendTCP(newFdTCP, ERROR_MSG);
+                close(newFdTCP);
                 exit(EXIT_FAILURE);
             }
             commandCode[SERVER_COMMAND_SIZE - 1] = '\0'; // Remove backspace
-            printf("[!] Client @ %s:%d sent %s command.\n", inet_ntoa(cliaddr.sin_addr), ntohs(cliaddr.sin_port), commandCode);
-            processClientTCP(newDSFDTCP, commandCode);
-            close(newDSFDTCP);
+            printf("Client @ %s:%d sent %s command.\n", inet_ntoa(cliaddr.sin_addr), ntohs(cliaddr.sin_port), commandCode);
+            processServerTCP(newFdTCP, commandCode);
+            close(newFdTCP);
             exit(EXIT_SUCCESS);
         }
         do
         {
-            ret = close(newDSFDTCP);
+            ret = close(newFdTCP);
         } while (ret == -1 && errno == EINTR);
         if (ret == -1)
         {
