@@ -57,7 +57,7 @@ void processServerTCP(int fd, char *command)
         processServerState(fd);
         break;
     default:
-        if (sendTCP(fd, ERROR_MSG) == -1)
+        if (sendTCPMessage(fd, ERROR_MSG) == -1)
         {
             close(fd);
             exit(EXIT_FAILURE);
@@ -114,7 +114,7 @@ static void sendServerStatusTCP(int fd, int command, char *status)
             sprintf(message, "RST %s", status);
         }
     }
-    if (sendTCP(fd, message) == -1)
+    if (sendTCPMessage(fd, message) == -1)
     {
         close(fd);
         exit(EXIT_FAILURE);

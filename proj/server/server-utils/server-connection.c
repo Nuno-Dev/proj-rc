@@ -185,7 +185,7 @@ void initiateServerTCP()
         {
             close(fdTCP);
             char commandCode[SERVER_COMMAND_SIZE];
-            int n = readTCP(newFdTCP, commandCode, SERVER_COMMAND_SIZE);
+            int n = readTCPMessage(newFdTCP, commandCode, SERVER_COMMAND_SIZE);
             if (n == -1)
             {
                 close(newFdTCP);
@@ -193,7 +193,7 @@ void initiateServerTCP()
             }
             if (commandCode[SERVER_COMMAND_SIZE - 1] != ' ')
             { // Protocol is (XXX )
-                sendTCP(newFdTCP, ERROR_MSG);
+                sendTCPMessage(newFdTCP, ERROR_MSG);
                 close(newFdTCP);
                 exit(EXIT_FAILURE);
             }
