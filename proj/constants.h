@@ -7,9 +7,8 @@
 /* By default GS server is set to be listening on localhost */
 #define GS_DEFAULT_IP "127.0.0.1"
 
-// ALTERAR AQUI ADICIONAR NUMERO DO GRUPO
-/* By default GS server is set to be listening on port 58000 + group number */
-#define GS_DEFAULT_PORT "58000" // + GROUP NUMBER
+/* By default GS server is set to be listening on port 58000 + group number (71) */
+#define GS_DEFAULT_PORT "58071"
 
 /* Hostnames (including the dots) can be at most 253 characters long */
 #define GS_IP_SIZE 254
@@ -40,6 +39,9 @@
 #define LOGGED_OUT 0
 #define LOGGED_IN 1
 
+#define VERBOSE_ON 1
+#define VERBOSE_OFF 0
+
 /* Max number of tries to recover packets that were sent via UDP protocol */
 #define MAX_UDP_RECV_TRIES 3
 
@@ -52,6 +54,9 @@
 
 /* The buffer size for a protocol message code */
 #define SERVER_COMMAND_SIZE 4
+
+/* The size of a buffer containing a GS message to the client to send the command status */
+#define SERVER_TCP_STATUS_SIZE 32
 
 /* The buffer size for a protocol message status via UDP protocol */
 #define SERVER_STATUS_SIZE 8
@@ -68,5 +73,14 @@
 #define ON 1
 
 #define OFF 0
+
+/* GS wrong protocol message */
+#define ERROR_MSG "ERR\n"
+
+/* GS wrong protocol message bytes */
+#define ERROR_MSG_SIZE 4
+
+/* Default size for the GS TCP listen queue */
+#define GS_LISTENQUEUE_SIZE 10
 
 #endif

@@ -45,10 +45,6 @@ static void parseArgs(int argc, char *argv[])
     }
 }
 
-/**
- * @brief Process all comands given by the client.
- */
-
 void processInput()
 {
     int command_number;
@@ -112,10 +108,6 @@ void processInput()
         }
     }
 }
-
-/**
- * @brief Main client program
- */
 
 int main(int argc, char *argv[])
 {
