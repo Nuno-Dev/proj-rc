@@ -23,7 +23,7 @@ struct addrinfo hintsTCP, *resTCP;
 
 void createUDPTCPConnections()
 {
-    // UDP
+    // UDPs
     fdUDP = socket(AF_INET, SOCK_DGRAM, 0);
     if (fdUDP == -1)
     {

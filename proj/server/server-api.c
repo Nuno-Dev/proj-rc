@@ -8,6 +8,8 @@
 #include <fcntl.h>
 #include <dirent.h>
 
+char *processServerStart(char **tokenList, int numTokens);
+
 char *processServerUDP(char *message)
 {
     char *token, *tokenList[CLIENT_NUMTOKENS];
@@ -26,6 +28,7 @@ char *processServerUDP(char *message)
     case START:
         response = processServerStart(tokenList, numTokens);
         break;
+    /*
     case PLAY:
         response = processServerPlay(tokenList, numTokens);
         break;
@@ -35,6 +38,7 @@ char *processServerUDP(char *message)
     case QUIT:
         response = processServerQuit(tokenList, numTokens);
         break;
+    */
     default:
         response = strdup(ERROR_MSG);
         break;
@@ -47,6 +51,7 @@ void processServerTCP(int fd, char *command)
     int cmd = parseServerCommand(command);
     switch (cmd)
     {
+        /*
     case SCOREBOARD:
         processServerScoreboard(fd);
         break;
@@ -56,6 +61,7 @@ void processServerTCP(int fd, char *command)
     case STATE:
         processServerState(fd);
         break;
+        */
     default:
         if (sendTCPMessage(fd, ERROR_MSG) == -1)
         {
@@ -119,4 +125,105 @@ static void sendServerStatusTCP(int fd, int command, char *status)
         close(fd);
         exit(EXIT_FAILURE);
     }
+}
+
+int getNumLines(int fd)
+{
+    int numLines = 0;
+    char c;
+    while (read(fd, &c, 1) == 1)
+    {
+        if (c == '\n')
+        {
+            numLines++;
+        }
+    }
+    return numLines;
+}
+
+char *getLine(int fd, int lineNum)
+{
+    int numLines = 0;
+    char c;
+    char *line = NULL;
+    int lineSize = 0;
+    while (read(fd, &c, 1) == 1)
+    {
+        if (c == '\n')
+        {
+            numLines++;
+            if (numLines == lineNum)
+            {
+                return line;
+            }
+            free(line);
+            line = NULL;
+            lineSize = 0;
+        }
+        else
+        {
+            line = realloc(line, lineSize + 1);
+            line[lineSize++] = c;
+        }
+    }
+    return NULL;
+}
+
+char *getLineFromFile(char *filename)
+{
+    int fd = open(filename, O_RDONLY);
+    if (fd == -1)
+    {
+        return NULL;
+    }
+    int numLines = getNumLines(fd);
+    int lineNum = rand() % numLines;
+    char *line = getLine(fd, lineNum);
+    close(fd);
+    return line;
+}
+
+char *processServerStart(char **tokenList, int numTokens)
+{
+    if (numTokens != 2)
+    {
+        return getServerReplyUDP(START, "NOK");
+    }
+    else if (!isValidPLID(tokenList[1]))
+    {
+        return getServerReplyUDP(START, "NOK");
+    }
+
+    // check if PLID.txt exists
+    char *filename = malloc(strlen(tokenList[1]) + 5);
+    sprintf(filename, "%s.txt", tokenList[1]);
+    if (access(filename, F_OK) != -1)
+    {
+        free(filename);
+        return getServerReplyUDP(START, "NOK");
+    }
+    // create the file PLID.txt
+    int fd = open(filename, O_CREAT | O_WRONLY, 0644);
+    if (fd == -1)
+    {
+        free(filename);
+        return getServerReplyUDP(START, "NOK");
+    }
+    // get one line from word_eng.txt
+    char *line = getLineFromFile("word_eng.txt");
+    if (line == NULL)
+    {
+        free(filename);
+        close(fd);
+        return getServerReplyUDP(START, "NOK");
+    }
+    // write the line to PLID.txt
+    if (write(fd, line, strlen(line)) == -1)
+    {
+        free(filename);
+        free(line);
+        close(fd);
+        return getServerReplyUDP(START, "NOK");
+    }
+    return getServerReplyUDP(START, "OK");
 }

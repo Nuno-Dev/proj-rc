@@ -15,21 +15,6 @@ static void parseArgs(int argc, char *argv[])
         fprintf(stderr, "Invalid server program arguments. Usage: ./GS word_file [-p GSport] [-v]\n");
         exit(EXIT_FAILURE);
     }
-    // ./GS word_file [-p GSport] [-v]
-    //  0    1        2       3       4
-    // check if word_file exists in /proj directory
-    char *word_file = argv[1];
-    char *path = malloc(strlen(word_file) + 6);
-    strcpy(path, "../");
-    strcat(path, word_file);
-    FILE *fp = fopen(path, "r");
-    if (fp == NULL)
-    {
-        fprintf(stderr, "Invalid word_file. Usage: ./GS word_file [-p GSport] [-v]\n");
-        exit(EXIT_FAILURE);
-    }
-    fclose(fp);
-    free(path);
     for (int i = 2; i < argc; ++i)
     {
         if (argv[i][0] != '-')

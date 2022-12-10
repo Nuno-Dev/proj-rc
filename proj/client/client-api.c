@@ -10,8 +10,8 @@
 #include <errno.h>
 
 /* DS Server information variables */
-char GSIP[GS_IP_SIZE] = "tejo.tecnico.ulisboa.pt"; // GS_DEFAULT_IP;
-char GSport[GS_PORT_SIZE] = "58011";               // GS_DEFAULT_PORT;
+char GSIP[GS_IP_SIZE] = GS_DEFAULT_IP;
+char GSport[GS_PORT_SIZE] = GS_DEFAULT_PORT;
 
 /* UDP Socket related variables */
 int fdUDP;
