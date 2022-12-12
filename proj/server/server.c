@@ -1,5 +1,5 @@
 #include "server-api.h"
-#include "server-utils/server-connection.h"
+#include "server-connection.h"
 #include "../common.h"
 #include "../constants.h"
 #include <stdio.h>

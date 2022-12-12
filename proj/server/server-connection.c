@@ -114,7 +114,7 @@ void createUDPTCPConnections()
         closeTCPSocket(fdTCP, resTCP);
         exit(EXIT_FAILURE);
     }
-    printf("[+] DS server started @ %s.\nCurrently listening in port %s for UDP and TCP connections...\n\n", hostname, portGS);
+    printf("DS server started @ %s.\nCurrently listening in port %s for UDP and TCP connections...\n\n", hostname, portGS);
 }
 
 void logVerbose(char *clientBuf, struct sockaddr_in s)

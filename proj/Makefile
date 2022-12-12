@@ -14,7 +14,7 @@ DEPS = common.h constants.h
 # Add client dependencies
 DEPS += client/client-api.h
 # Add server dependencies
-DEPS += server/server-api.h server/server-utils/server-connection.h server/server-utils/server-operations.h
+DEPS += server/server-api.h server/server-connection.h server/server-operations.h
 
 _OBJ1 += common.o client.o client-api.o 
 OBJ1 = $(patsubst %,$(ODIR)/%,$(_OBJ1))
@@ -52,11 +52,6 @@ $(ODIR)/%.o: client/%.c $(DEPS)
 
 # Create .o for all .c inside the server directory
 $(ODIR)/%.o: server/%.c $(DEPS)
-	@mkdir -p $(@D)
-	@$(CC) $(CFLAGS) -c -o $@ $< 
-
-# Create .o for all .c inside server-utils directory
-$(ODIR)/%.o: server/server-utils/%.c $(DEPS)
 	@mkdir -p $(@D)
 	@$(CC) $(CFLAGS) -c -o $@ $< 
 
