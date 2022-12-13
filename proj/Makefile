@@ -14,11 +14,11 @@ DEPS = common.h constants.h
 # Add client dependencies
 DEPS += client/client-api.h
 # Add server dependencies
-DEPS += server/server-api.h server/server-connection.h server/server-operations.h
+DEPS += server/server-api.h server/server-connection.h
 
 _OBJ1 += common.o client.o client-api.o 
 OBJ1 = $(patsubst %,$(ODIR)/%,$(_OBJ1))
-_OBJ2 += common.o server.o server-api.o server-connection.o server-operations.o
+_OBJ2 += common.o server.o server-api.o server-connection.o
 OBJ2 = $(patsubst %,$(ODIR)/%,$(_OBJ2))
 
 

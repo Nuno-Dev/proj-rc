@@ -147,7 +147,7 @@ void processUDPReply(char *message)
 {
     char serverCommand[SERVER_COMMAND_SIZE], serverStatus[SERVER_STATUS_SIZE];
     sscanf(message, "%s %s", serverCommand, serverStatus);
-
+    printf("Server response: %s %s\n", serverCommand, serverStatus);
     if (!strcmp(serverCommand, "RSG"))
     { // START response
         if (!strcmp(serverStatus, "OK"))
@@ -163,7 +163,7 @@ void processUDPReply(char *message)
         }
         else if (!strcmp(serverStatus, "NOK"))
         {
-            fprintf(stderr, "Something went wrong with start. Please try again later.\n");
+            fprintf(stderr, "You already have a playing session in progress. To play use <play> command.\n");
         }
         else
         {

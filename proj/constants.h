@@ -42,6 +42,9 @@
 #define VERBOSE_ON 1
 #define VERBOSE_OFF 0
 
+/* max length of line in word file */
+#define MAX_LINE_SIZE 100
+
 /* Max number of tries to recover packets that were sent via UDP protocol */
 #define MAX_UDP_RECV_TRIES 3
 

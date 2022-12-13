@@ -9,7 +9,7 @@
 #include <string.h>
 
 static void parseArgs(int argc, char *argv[])
-{ // Usage: ./GS word_file [-p GSport] [-v]
+{ // Usage: ./GS word_eng.txt [-p GSport] [-v]
     if (!(argc == 2 || argc == 3 || argc == 4 || argc == 5))
     {
         fprintf(stderr, "Invalid server program arguments. Usage: ./GS word_file [-p GSport] [-v]\n");

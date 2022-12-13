@@ -9,7 +9,7 @@
 #include <signal.h>
 #include <errno.h>
 
-/*GS Server information variables */
+/*Server information variables */
 char portGS[GS_PORT_SIZE] = GS_DEFAULT_PORT;
 int verbose = VERBOSE_OFF;
 
@@ -105,16 +105,16 @@ void createUDPTCPConnections()
         }
     }
 
-    // If verbose is on print out where the GS server is running and at which port it's listening to
+    // If verbose is on print out where the server is running and at which port it's listening to
     char hostname[GS_IP_SIZE + 1];
     if (gethostname(hostname, GS_IP_SIZE) == -1)
     {
-        fprintf(stderr, "Failed to get DS hostname.\n");
+        fprintf(stderr, "Failed to get Server hostname.\n");
         closeUDPSocket(fdUDP, resUDP);
         closeTCPSocket(fdTCP, resTCP);
         exit(EXIT_FAILURE);
     }
-    printf("DS server started @ %s.\nCurrently listening in port %s for UDP and TCP connections...\n\n", hostname, portGS);
+    printf("Server started @ %s.\nCurrently listening in port %s for UDP and TCP connections...\n\n", hostname, portGS);
 }
 
 void logVerbose(char *clientBuf, struct sockaddr_in s)
@@ -135,7 +135,7 @@ void initiateServerUDP()
         n = recvfrom(fdUDP, clientBuf, sizeof(clientBuf), 0, (struct sockaddr *)&cliaddr, &addrlen);
         if (n == -1)
         {
-            perror("(UDP) DS failed on recvfrom");
+            perror("(UDP) Server failed on recvfrom");
             closeUDPSocket(fdUDP, resUDP);
             exit(EXIT_FAILURE);
         }
@@ -144,7 +144,7 @@ void initiateServerUDP()
             n = sendto(fdUDP, ERROR_MSG, ERROR_MSG_SIZE, 0, (struct sockaddr *)&cliaddr, addrlen);
             if (n == -1)
             {
-                perror("(UDP) DS failed on sendto");
+                perror("(UDP) Server failed on sendto");
                 closeUDPSocket(fdUDP, resUDP);
                 exit(EXIT_FAILURE);
             }
@@ -155,10 +155,12 @@ void initiateServerUDP()
         commandCode[SERVER_COMMAND_SIZE - 1] = '\0';
         printf("Client @ %s:%d sent %s command.\n", inet_ntoa(cliaddr.sin_addr), ntohs(cliaddr.sin_port), commandCode);
         serverBuf = processServerUDP(clientBuf);
+        // print server response
+        printf("Server response: %s", serverBuf);
         n = sendto(fdUDP, serverBuf, strlen(serverBuf), 0, (struct sockaddr *)&cliaddr, addrlen);
         if (n == -1)
         {
-            perror("(UDP) DS failed on sendto");
+            perror("(UDP) Server failed on sendto");
             free(serverBuf);
             closeUDPSocket(fdUDP, resUDP);
             exit(EXIT_FAILURE);

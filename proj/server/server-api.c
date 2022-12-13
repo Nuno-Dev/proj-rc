@@ -8,6 +8,8 @@
 #include <fcntl.h>
 #include <dirent.h>
 
+int currentWordFileLine = 0;
+
 char *processServerStart(char **tokenList, int numTokens);
 
 char *processServerUDP(char *message)
@@ -127,60 +129,30 @@ static void sendServerStatusTCP(int fd, int command, char *status)
     }
 }
 
-int getNumLines(int fd)
-{
-    int numLines = 0;
-    char c;
-    while (read(fd, &c, 1) == 1)
-    {
-        if (c == '\n')
-        {
-            numLines++;
-        }
-    }
-    return numLines;
-}
-
-char *getLine(int fd, int lineNum)
-{
-    int numLines = 0;
-    char c;
-    char *line = NULL;
-    int lineSize = 0;
-    while (read(fd, &c, 1) == 1)
-    {
-        if (c == '\n')
-        {
-            numLines++;
-            if (numLines == lineNum)
-            {
-                return line;
-            }
-            free(line);
-            line = NULL;
-            lineSize = 0;
-        }
-        else
-        {
-            line = realloc(line, lineSize + 1);
-            line[lineSize++] = c;
-        }
-    }
-    return NULL;
-}
-
 char *getLineFromFile(char *filename)
 {
-    int fd = open(filename, O_RDONLY);
-    if (fd == -1)
+    // get currentWordLine th line from /word_eng.txt
+    FILE *fp = fopen(filename, "r");
+    if (fp == NULL)
     {
         return NULL;
     }
-    int numLines = getNumLines(fd);
-    int lineNum = rand() % numLines;
-    char *line = getLine(fd, lineNum);
-    close(fd);
-    return line;
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    int i = 0;
+    while ((read = getline(&line, &len, fp)) != -1)
+    {
+        if (i == currentWordFileLine)
+        {
+            currentWordFileLine++;
+            fclose(fp);
+            return line;
+        }
+        i++;
+    }
+    fclose(fp);
+    return NULL;
 }
 
 char *processServerStart(char **tokenList, int numTokens)
@@ -194,9 +166,9 @@ char *processServerStart(char **tokenList, int numTokens)
         return getServerReplyUDP(START, "NOK");
     }
 
-    // check if PLID.txt exists
-    char *filename = malloc(strlen(tokenList[1]) + 5);
-    sprintf(filename, "%s.txt", tokenList[1]);
+    // check if /games/PLID.txt exists
+    char *filename = malloc(strlen(tokenList[1]) + 7);
+    sprintf(filename, "games/%s.txt", tokenList[1]);
     if (access(filename, F_OK) != -1)
     {
         free(filename);
@@ -209,7 +181,8 @@ char *processServerStart(char **tokenList, int numTokens)
         free(filename);
         return getServerReplyUDP(START, "NOK");
     }
-    // get one line from word_eng.txt
+    printf("Created file %s.txt\n", tokenList[1]);
+    // get currentWordline th line from /word_eng.txt
     char *line = getLineFromFile("word_eng.txt");
     if (line == NULL)
     {
@@ -217,13 +190,17 @@ char *processServerStart(char **tokenList, int numTokens)
         close(fd);
         return getServerReplyUDP(START, "NOK");
     }
+    // printf line
+    printf("Line: %s\n", line);
     // write the line to PLID.txt
     if (write(fd, line, strlen(line)) == -1)
     {
         free(filename);
-        free(line);
         close(fd);
         return getServerReplyUDP(START, "NOK");
     }
+    free(line);
+    close(fd);
+    currentWordFileLine = (currentWordFileLine + 1) % 25;
     return getServerReplyUDP(START, "OK");
 }
