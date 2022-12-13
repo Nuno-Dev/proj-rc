@@ -39,9 +39,11 @@ char guessedWord[MAX_WORD_LENGTH_SIZE] = {'\0'};
 
 int wordLength;
 
-int maxNumberTries;
+int maxNumberErrors;
 
 int currentTrial = 1;
+
+int currentErrors = 0;
 
 char letterGuess[1];
 
@@ -153,13 +155,13 @@ void processUDPReply(char *message)
         if (!strcmp(serverStatus, "OK"))
         {
             clientSession = LOGGED_IN;
-            sscanf(message, "%*s %*s %d %d", &wordLength, &maxNumberTries);
+            sscanf(message, "%*s %*s %d %d", &wordLength, &maxNumberErrors);
             for (int i = 0; i < wordLength; i++)
             {
                 currentWord[i] = '_';
             }
             currentWord[wordLength] = '\0';
-            printf("New game started (max %d errors): %s\n", maxNumberTries, getCurrentWordWithSpaces());
+            printf("New game started (max %d errors): %s\n", maxNumberErrors, getCurrentWordWithSpaces());
         }
         else if (!strcmp(serverStatus, "NOK"))
         {
@@ -213,13 +215,14 @@ void processUDPReply(char *message)
         }
         else if (!strcmp(serverStatus, "NOK"))
         {
-            printf("No, '%c' is not part of the word: %s\n", letterGuess[0], getCurrentWordWithSpaces());
+            printf("No, '%c' is not part of the word: %s [%d Errors left]\n", letterGuess[0], getCurrentWordWithSpaces(), maxNumberErrors - currentErrors);
             currentTrial++;
+            currentErrors++;
         }
         else if (!strcmp(serverStatus, "OVR"))
         {
             printf("No, '%c' is not part of the word: %s\n", letterGuess[0], getCurrentWordWithSpaces());
-            printf("GAME OVER! You lost because you reached the maximum failed attempts of %d. Better luck next time!\n", maxNumberTries);
+            printf("GAME OVER! You lost because you reached the maximum failed attempts of %d. Better luck next time!\n", maxNumberErrors);
             clientSession = LOGGED_OUT;
             memset(clientPLID, 0, sizeof(clientPLID));
         }
@@ -264,7 +267,7 @@ void processUDPReply(char *message)
         else if (!strcmp(serverStatus, "OVR"))
         {
             printf("No, '%s' is not the correct word: %s\n", guessedWord, getCurrentWordWithSpaces());
-            printf("GAME OVER! You lost because you reached the maximum failed attempts of %d. Better luck next time!\n", maxNumberTries);
+            printf("GAME OVER! You lost because you reached the maximum failed attempts of %d. Better luck next time!\n", maxNumberErrors);
             clientSession = LOGGED_OUT;
             memset(clientPLID, 0, sizeof(clientPLID));
         }

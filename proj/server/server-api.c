@@ -219,7 +219,7 @@ char *processServerStart(char **tokenList, int numTokens)
         close(fd);
         return getServerReplyUDP(START, "NOK");
     }
-    printf("Picked line with number: %d and content: %s\n", line);
+    printf("Picked line with number: %d and content: %s\n", currentWordFileLine, line);
     // write the line to PLID.txt
     if (write(fd, line, strlen(line)) == -1)
     {
