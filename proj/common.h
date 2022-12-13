@@ -21,6 +21,8 @@ int isValidPlay(char *play);
 
 int isValidGuess(char *guess);
 
+int isValidTrial(char *trial);
+
 int sendTCPMessage(int fd, char *message);
 
 int readTCPMessage(int fd, char *message, int maxSize);

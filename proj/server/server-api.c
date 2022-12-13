@@ -1,4 +1,5 @@
 #include "server-api.h"
+
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
@@ -11,6 +12,9 @@
 int currentWordFileLine = 0;
 
 char *processServerStart(char **tokenList, int numTokens);
+char *processServerPlay(char **tokenList, int numTokens);
+// char *processServerGuess(char **tokenList, int numTokens);
+// char *processServerQuit(char **tokenList, int numTokens);
 
 char *processServerUDP(char *message)
 {
@@ -30,10 +34,10 @@ char *processServerUDP(char *message)
     case START:
         response = processServerStart(tokenList, numTokens);
         break;
-    /*
     case PLAY:
         response = processServerPlay(tokenList, numTokens);
         break;
+    /*
     case GUESS:
         response = processServerGuess(tokenList, numTokens);
         break;
@@ -129,11 +133,10 @@ static void sendServerStatusTCP(int fd, int command, char *status)
     }
 }
 
-char *getLineFromFile(char *filename)
+char *getLineFromFile(char *filename, int lineNum)
 {
-    // get currentWordLine th line from /word_eng.txt
-    FILE *fp = fopen(filename, "r");
-    if (fp == NULL)
+    FILE *file = fopen(filename, "r");
+    if (file == NULL)
     {
         return NULL;
     }
@@ -141,18 +144,45 @@ char *getLineFromFile(char *filename)
     size_t len = 0;
     ssize_t read;
     int i = 0;
-    while ((read = getline(&line, &len, fp)) != -1)
+    while ((read = getline(&line, &len, file)) != -1)
     {
-        if (i == currentWordFileLine)
+        if (i == lineNum)
         {
-            currentWordFileLine++;
-            fclose(fp);
+            fclose(file);
+            line[strlen(line) - 1] = '\0';
             return line;
         }
         i++;
     }
-    fclose(fp);
+    fclose(file);
     return NULL;
+}
+
+// getGameWordFromFile: returns the first word from the first line of /games/PLID.txt
+char *getGameWordFromFile(char *filename)
+{
+    // get first line from file
+    char *line = getLineFromFile(filename, 0);
+    if (line == NULL)
+    {
+        return NULL;
+    }
+    char *word = strtok(line, " ");
+    return word;
+}
+
+// getGameHintFromFile: returns the second word from the first line of /games/PLID.txt
+char *getGameHintFromFile(char *filename)
+{
+    // get first line from file
+    char *line = getLineFromFile(filename, 0);
+    if (line == NULL)
+    {
+        return NULL;
+    }
+    char *word = strtok(line, " ");
+    char *hint = strtok(NULL, " ");
+    return hint;
 }
 
 char *processServerStart(char **tokenList, int numTokens)
@@ -182,16 +212,14 @@ char *processServerStart(char **tokenList, int numTokens)
         return getServerReplyUDP(START, "NOK");
     }
     printf("Created file %s.txt\n", tokenList[1]);
-    // get currentWordline th line from /word_eng.txt
-    char *line = getLineFromFile("word_eng.txt");
+    char *line = getLineFromFile("word_eng.txt", currentWordFileLine);
     if (line == NULL)
     {
         free(filename);
         close(fd);
         return getServerReplyUDP(START, "NOK");
     }
-    // printf line
-    printf("Line: %s\n", line);
+    printf("Picked line with number: %d and content: %s\n", line);
     // write the line to PLID.txt
     if (write(fd, line, strlen(line)) == -1)
     {
@@ -199,8 +227,42 @@ char *processServerStart(char **tokenList, int numTokens)
         close(fd);
         return getServerReplyUDP(START, "NOK");
     }
-    free(line);
-    close(fd);
+    char *gameWord = strtok(line, " ");
+    int gameWordLength = strlen(gameWord);
+    int maxErrors = gameWordLength < 7 ? 7 : gameWordLength <= 10 ? 8
+                                                                  : 9;
     currentWordFileLine = (currentWordFileLine + 1) % 25;
-    return getServerReplyUDP(START, "OK");
+    char *serverReply = getServerReplyUDP(START, "OK");
+    // add gameWordLength and maxErrors to serverReply
+    char *finalServerReply = malloc(strlen(serverReply) + 10);
+    // remove last char of serverReply
+    serverReply[strlen(serverReply) - 1] = '\0';
+    sprintf(finalServerReply, "%s %d %d\n", serverReply, gameWordLength, maxErrors);
+    free(serverReply);
+    free(line);
+    free(filename);
+    close(fd);
+    return finalServerReply;
+}
+
+char *processServerPlay(char **tokenList, int numTokens)
+{
+    // tokenList = PLG PLID letter trial
+    if (numTokens != 4)
+    {
+        return getServerReplyUDP(PLAY, "NOK");
+    }
+    else if (!isValidPLID(tokenList[1]))
+    {
+        return getServerReplyUDP(PLAY, "NOK");
+    }
+    else if (!isValidPlay(tokenList[2]))
+    {
+        return getServerReplyUDP(PLAY, "NOK");
+    }
+    else if (!isValidTrial(tokenList[3]))
+    {
+        return getServerReplyUDP(PLAY, "NOK");
+    }
+    return getServerReplyUDP(PLAY, "OK");
 }

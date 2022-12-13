@@ -117,6 +117,11 @@ int isValidGuess(char *guess)
     return strlen(guess) <= MAX_WORD_LENGTH_SIZE && validRegex(guess, "^[a-zA-Z]+$");
 }
 
+int isValidTrial(char *trial)
+{
+    return validRegex(trial, "^[0-9]{1,3}$");
+}
+
 int sendTCPMessage(int fd, char *message)
 {
     int bytesSent = 0;
