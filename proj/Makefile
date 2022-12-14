@@ -59,5 +59,5 @@ $(ODIR)/%.o: server/%.c $(DEPS)
 clean:
 	@rm -rf $(ODIR)
 	@rm -f *~ core $(INCDIR)/*~ $(CLIENT_EXEC) $(SERVER_EXEC)
-	@rm -f games/*.txt
+	@rm -f games/*.txt scores/*.txt
 	$(info Cleaned successfully!)

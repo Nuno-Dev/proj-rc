@@ -165,6 +165,7 @@ void processUDPReply(char *message)
         }
         else if (!strcmp(serverStatus, "NOK"))
         {
+            clientSession = LOGGED_IN;
             fprintf(stderr, "You already have a playing session in progress. To play use <play> command.\n");
         }
         else
@@ -215,9 +216,9 @@ void processUDPReply(char *message)
         }
         else if (!strcmp(serverStatus, "NOK"))
         {
+            currentErrors++;
             printf("No, '%c' is not part of the word: %s [%d Errors left]\n", letterGuess[0], getCurrentWordWithSpaces(), maxNumberErrors - currentErrors);
             currentTrial++;
-            currentErrors++;
         }
         else if (!strcmp(serverStatus, "OVR"))
         {
@@ -229,6 +230,10 @@ void processUDPReply(char *message)
         else if (!strcmp(serverStatus, "INV"))
         {
             printf("The trial number that you entered is not valid or you have already played a different letter for that trial. Please try again.\n");
+        }
+        else if (!strcmp(serverStatus, "ERR"))
+        {
+            printf("PLID is invalid or there is no ongoing game for that specific PLID. Please try again.\n");
         }
         else
         {
@@ -599,11 +604,6 @@ void clientPlay(char **tokenList, int numTokens)
     if (!isValidPlay(tokenList[1]))
     { // Protocol validation
         fprintf(stderr, "Invalid play command arguments. Please check given input and try again.\n");
-        return;
-    }
-    if (clientSession == LOGGED_OUT)
-    {
-        fprintf(stderr, "You don't have an ongoing playing session. Please use <start> command and try again.\n");
         return;
     }
     // PLG PLID letter trial

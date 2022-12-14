@@ -8,6 +8,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <time.h>
+#include <sys/time.h>
+#include <sys/types.h>
 
 int currentWordFileLine = 0;
 
@@ -149,7 +152,6 @@ char *getLineFromFile(char *filename, int lineNum)
         if (i == lineNum)
         {
             fclose(file);
-            line[strlen(line) - 1] = '\0';
             return line;
         }
         i++;
@@ -200,54 +202,188 @@ char *getGameHintFromFile(char *filename)
     {
         return NULL;
     }
-    char *word = strtok(line, " ");
-    char *hint = strtok(NULL, " ");
+    // get second word from line
+    char *hint = strtok(line, " ");
+    hint = strtok(NULL, " ");
     return hint;
 }
 
-// getCorrectPlayPositions: returns string of all positions where the char played is correct
-char *getCorrectPlayPositions(char *word, char *guess)
+// getCorrectPlayPositions: returns array of integers i of all indexes where guess = word[i]
+int *getCorrectPlayPositions(char *word, char *guess)
 {
-    char *positions = malloc(strlen(word) + 1);
-    int i;
+    int *positions = malloc(sizeof(int) * strlen(word));
+    int i = 0;
     int j = 0;
-    for (i = 0; i < strlen(word); i++)
+    while (word[i] != '\0')
     {
         if (word[i] == guess[0])
         {
-            positions[j] = i + '0';
+            positions[j] = i + 1; // index + 1;
             j++;
         }
+        i++;
     }
-    positions[j] = '\0';
+    positions[j] = -1;
     return positions;
 }
 
-// hasBeenPlayedBefore: iterates through filename and checks if line has string already
+// hasBeenPlayedBefore: iterates through filename and checks if string is a line inside file
 int hasBeenPlayedBefore(char *filename, char *type, char *string)
 {
+    // concatenate [type] + [string] and check if it exists in file
+    char *line = malloc(sizeof(char) * (strlen(type) + strlen(string) + 2));
+    strcpy(line, type);
+    strcat(line, " ");
+    strcat(line, string);
+    strcat(line, "\n");
     // type can be "play" or "guess"
     FILE *file = fopen(filename, "r");
     if (file == NULL)
     {
+        free(line);
         return -1;
     }
-    char *line = NULL;
+    char *fileLine = NULL;
     size_t len = 0;
     ssize_t read;
-    while ((read = getline(&line, &len, file)) != -1)
+    while ((read = getline(&fileLine, &len, file)) != -1)
     {
-        char *token1 = strtok(line, " ");
-        char *token2 = strtok(NULL, " ");
-        // if type == token1, check if token2 == string
-        if (!strcmp(type, token1) && !strcmp(string, token2))
+        if (!strcmp(fileLine, line))
         {
             fclose(file);
+            free(line);
             return 1;
         }
     }
     fclose(file);
+    free(line);
     return 0;
+}
+
+// writePlayToFile: writes a play to /games/PLID.txt
+int writePlayToFile(char *filename, char *play, char *guess)
+{
+    FILE *file = fopen(filename, "a");
+    if (file == NULL)
+    {
+        return -1;
+    }
+    fprintf(file, "%s %s\n", play, guess);
+    fclose(file);
+    return 0;
+}
+
+// getGameScore: returns the score of the game in /games/PLID.txt
+int getGameScore(int errorsLeft, int maxErrors)
+{
+    return (int)((float)errorsLeft / (float)maxErrors * 100);
+}
+
+int handleGameEnding(char *filename, char *PLID, int gameState, int gameScore)
+{
+    FILE *gameFile = fopen(filename, "a");
+    if (gameFile == NULL)
+    {
+        return -1;
+    }
+    if (gameState == GAME_WON)
+    {
+        fprintf(gameFile, "CONGRATS you just won the game with a score of %d!\n", gameScore);
+    }
+    else
+    {
+        fprintf(gameFile, "GAME OVER.. better luck next time. Your score is 0.\n");
+    }
+    fclose(gameFile);
+    // rename filename into scores/PLID.txt
+    char *newFilename = malloc(sizeof(char) * (strlen(PLID) + 7));
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    char date[20];
+    sprintf(date, "%02d%02d%04d_%02d%02d%02d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec);
+    sprintf(newFilename, "scores/%d_%s_%s.txt", gameScore, PLID, date);
+    rename(filename, newFilename);
+    free(newFilename);
+    return 0;
+}
+
+int getMaxErrors(int lengthWord)
+{
+    if (lengthWord < 7)
+    {
+        return 7;
+    }
+    else if (lengthWord <= 10)
+    {
+        return 8;
+    }
+    else
+    {
+        return 9;
+    }
+}
+
+// getGameStateFromFile: returns [game_state, errorsLeft]
+int *getGameStateFromFile(char *filename)
+{
+    int *result = malloc(sizeof(int) * 2);
+    // get the word from the first line of the file
+    char *word = getGameWordFromFile(filename);
+    if (word == NULL)
+    {
+        result[0] = GAME_ERROR;
+        result[1] = -1;
+        return result;
+    }
+    int errorsLeft = getMaxErrors(strlen(word));
+    int lettersLeft = strlen(word);
+    int numLines = getNumberOfLinesFromFile(filename);
+    for (int i = 1; i < numLines; i++)
+    {
+        char *line = getLineFromFile(filename, i);
+        if (line == NULL)
+        {
+            result[0] = GAME_ERROR;
+            result[1] = -1;
+            return result;
+        }
+        char *token1 = strtok(line, " ");
+        char *token2 = strtok(NULL, " ");
+
+        // if token1 == "play", check if token2 is in word
+        if (!strcmp(token1, "play"))
+        {
+            if (strchr(word, token2[0]) == NULL)
+            {
+                errorsLeft--;
+                if (errorsLeft == 0)
+                {
+                    result[0] = GAME_LOST;
+                    result[1] = 0;
+                    return result;
+                }
+            }
+            else
+            {
+                // letterLeft -= number of times token2[0] appears in word
+                for (int j = 0; j < strlen(word); j++)
+                {
+                    if (word[j] == token2[0])
+                        lettersLeft--;
+                }
+                if (lettersLeft == 0)
+                {
+                    result[0] = GAME_WON;
+                    result[1] = errorsLeft;
+                    return result;
+                }
+            }
+        }
+        free(line);
+    }
+    result[0] = GAME_ONGOING;
+    result[1] = errorsLeft;
+    return result;
 }
 
 char *processServerStart(char **tokenList, int numTokens)
@@ -284,7 +420,7 @@ char *processServerStart(char **tokenList, int numTokens)
         close(fd);
         return getServerReplyUDP(START, "NOK");
     }
-    printf("Picked line with number: %d and content: %s\n", currentWordFileLine, line);
+    printf("Picked line with number: %d and content: %s", currentWordFileLine, line);
     // write the line to PLID.txt
     if (write(fd, line, strlen(line)) == -1)
     {
@@ -294,8 +430,7 @@ char *processServerStart(char **tokenList, int numTokens)
     }
     char *gameWord = strtok(line, " ");
     int gameWordLength = strlen(gameWord);
-    int maxErrors = gameWordLength < 7 ? 7 : gameWordLength <= 10 ? 8
-                                                                  : 9;
+    int maxErrors = getMaxErrors(gameWordLength);
     currentWordFileLine = (currentWordFileLine + 1) % 25;
     char *serverReply = getServerReplyUDP(START, "OK");
     // add gameWordLength and maxErrors to serverReply
@@ -313,6 +448,10 @@ char *processServerStart(char **tokenList, int numTokens)
 char *processServerPlay(char **tokenList, int numTokens)
 {
     // tokenList = PLG PLID letter trial
+    for (int i = 0; i < numTokens; i++)
+    {
+        printf("tokenList[%d] = %s\n", i, tokenList[i]);
+    }
     if (numTokens != 4)
     {
         return getServerReplyUDP(PLAY, "ERR");
@@ -329,11 +468,12 @@ char *processServerPlay(char **tokenList, int numTokens)
     {
         return getServerReplyUDP(PLAY, "ERR");
     }
-    // check if games/PLID.txt exists
+    // check if PLID.txt doesnt exist in games folder
     char *filename = malloc(strlen(tokenList[1]) + 7);
     sprintf(filename, "games/%s.txt", tokenList[1]);
-    if (access(filename, F_OK) != -1)
+    if (access(filename, F_OK) == -1)
     {
+        printf("Error, file %s doesn't exist.\n", filename);
         free(filename);
         return getServerReplyUDP(START, "ERR");
     }
@@ -353,23 +493,77 @@ char *processServerPlay(char **tokenList, int numTokens)
     char *gameWord = getGameWordFromFile(filename);
     if (gameWord == NULL)
     {
+        printf("6\n");
         free(filename);
         return getServerReplyUDP(PLAY, "ERR");
     }
     // check if has been played before
-    if (hasBeenPlayedBefore(filename, "play", tokenList[2]))
+    if (hasBeenPlayedBefore(filename, "play", tokenList[2]) == 1)
     {
         free(filename);
         return getServerReplyUDP(PLAY, "DUP");
     }
-    // get correct positions of tokenList[2] in gameWord
-    char *correctPositions = getCorrectPlayPositions(gameWord, tokenList[2]);
-    if (correctPositions == NULL)
+    // write play to games/PLID.txt
+    if (writePlayToFile(filename, "play", tokenList[2]) == -1)
     {
         free(filename);
+        return getServerReplyUDP(PLAY, "ERR");
+    }
+    // get game state and errorsLeft from getGameStateFromFile
+    int *gameState = getGameStateFromFile(filename);
+    if (gameState == NULL)
+    {
+        free(filename);
+        return getServerReplyUDP(PLAY, "ERR");
+    }
+    int gameStateResult = gameState[0];
+    int errorsLeft = gameState[1];
+    if (gameStateResult == GAME_ERROR)
+    {
+        free(filename);
+        return getServerReplyUDP(PLAY, "ERR");
+    }
+    else if (gameStateResult == GAME_WON)
+    {
+        int gameScore = getGameScore(errorsLeft, strlen(gameWord));
+        handleGameEnding(filename, tokenList[1], GAME_WON, gameScore);
+        free(filename);
+        return getServerReplyUDP(PLAY, "WIN");
+    }
+    else if (gameStateResult == GAME_LOST)
+    {
+        handleGameEnding(filename, tokenList[1], GAME_LOST, 0);
+        free(filename);
+        return getServerReplyUDP(PLAY, "OVR");
+    }
+    int *correctPositions = getCorrectPlayPositions(gameWord, tokenList[2]);
+    // if correctPositions if empty then the user didn't guess any letter
+    if (correctPositions[0] == -1)
+    {
+        free(filename);
+        free(correctPositions);
         return getServerReplyUDP(PLAY, "NOK");
     }
-
+    // server reply = "RLG OK numCorrectPositions correctPositions(divided by spaced)"
+    char serverReply[SERVER_MESSAGE_UDP_SIZE];
+    int numCorrectPositions = 0;
+    while (correctPositions[numCorrectPositions] != -1)
+    {
+        numCorrectPositions++;
+    }
+    // RLG OK trial numCorrectPositions correctPositions
+    sprintf(serverReply, "RLG OK %s %d", tokenList[3], numCorrectPositions);
+    // add correctPositions separated by spaces to serverReply
+    for (int i = 0; i < numCorrectPositions; i++)
+    {
+        strcat(serverReply, " ");
+        char *position = malloc(2);
+        sprintf(position, "%d", correctPositions[i]);
+        strcat(serverReply, position);
+        free(position);
+    }
+    strcat(serverReply, "\n");
     free(filename);
-    return getServerReplyUDP(PLAY, "OK");
+    free(correctPositions);
+    return strdup(serverReply);
 }

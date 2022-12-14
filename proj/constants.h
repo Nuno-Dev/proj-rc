@@ -86,4 +86,12 @@
 /* Default size for the GS TCP listen queue */
 #define GS_LISTENQUEUE_SIZE 10
 
+#define GAME_WON 2
+
+#define GAME_ONGOING 1
+
+#define GAME_LOST 0
+
+#define GAME_ERROR -1
+
 #endif
