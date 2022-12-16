@@ -18,7 +18,7 @@ int getNumberOfLinesFromFile(char *filename);
 char *processServerStart(char **tokenList, int numTokens);
 char *processServerPlay(char **tokenList, int numTokens);
 char *processServerGuess(char **tokenList, int numTokens);
-// char *processServerQuit(char **tokenList, int numTokens);
+char *processServerQuit(char **tokenList, int numTokens);
 
 char *processServerUDP(char *message)
 {
@@ -44,11 +44,9 @@ char *processServerUDP(char *message)
     case GUESS:
         response = processServerGuess(tokenList, numTokens);
         break;
-    /*
     case QUIT:
         response = processServerQuit(tokenList, numTokens);
         break;
-    */
     default:
         response = strdup(ERROR_MSG);
         break;
@@ -690,4 +688,35 @@ char *processServerGuess(char **tokenList, int numTokens)
         free(filename);
         return getServerReplyUDP(GUESS, "NOK", currentTrial);
     }
+}
+
+char *processServerQuit(char **tokenList, int numTokens)
+{
+    // tokenList = QUT PLID
+    if (numTokens != 2)
+    {
+        return getServerReplyUDP(QUIT, "ERR", 0);
+    }
+    else if (!isValidPLID(tokenList[1]))
+    {
+        return getServerReplyUDP(QUIT, "ERR", 0);
+    }
+    // check if PLID.txt doesnt exist in games folder
+    char *filename = malloc(strlen(tokenList[1]) + 7);
+    sprintf(filename, "games/%s.txt", tokenList[1]);
+    if (access(filename, F_OK) == -1)
+    {
+        printf("Error, file %s doesn't exist.\n", filename);
+        free(filename);
+        return getServerReplyUDP(QUIT, "NOK", 0);
+    }
+    // delete PLID.txt from games folder
+    if (remove(filename) == -1)
+    {
+        printf("Error, couldn't delete file %s.\n", filename);
+        free(filename);
+        return getServerReplyUDP(QUIT, "ERR", 0);
+    }
+    free(filename);
+    return getServerReplyUDP(QUIT, "OK", 0);
 }
