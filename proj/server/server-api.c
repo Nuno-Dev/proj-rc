@@ -14,9 +14,10 @@
 
 int currentWordFileLine = 0;
 
+int getNumberOfLinesFromFile(char *filename);
 char *processServerStart(char **tokenList, int numTokens);
 char *processServerPlay(char **tokenList, int numTokens);
-// char *processServerGuess(char **tokenList, int numTokens);
+char *processServerGuess(char **tokenList, int numTokens);
 // char *processServerQuit(char **tokenList, int numTokens);
 
 char *processServerUDP(char *message)
@@ -40,10 +41,10 @@ char *processServerUDP(char *message)
     case PLAY:
         response = processServerPlay(tokenList, numTokens);
         break;
-    /*
     case GUESS:
         response = processServerGuess(tokenList, numTokens);
         break;
+    /*
     case QUIT:
         response = processServerQuit(tokenList, numTokens);
         break;
@@ -80,19 +81,33 @@ void processServerTCP(int fd, char *command)
     }
 }
 
-static char *getServerReplyUDP(int command, char *status)
+static char *getServerReplyUDP(int command, char *status, int currentTrial)
 {
-    char message[SERVER_MESSAGE_UDP_SIZE];
+    char message[SERVER_MESSAGE_UDP_SIZE] = {'\0'};
     switch (command)
     {
     case START:
         sprintf(message, "RSG %s\n", status);
         break;
     case PLAY:
-        sprintf(message, "RLG %s\n", status);
+        if (strcmp(status, "ERR"))
+        {
+            sprintf(message, "RLG %s %d\n", status, currentTrial);
+        }
+        else
+        {
+            sprintf(message, "RLG %s\n", status);
+        }
         break;
     case GUESS:
-        sprintf(message, "RWG %s\n", status);
+        if (strcmp(status, "ERR"))
+        {
+            sprintf(message, "RWG %s %d\n", status, currentTrial);
+        }
+        else
+        {
+            sprintf(message, "RWG %s\n", status);
+        }
         break;
     case QUIT:
         sprintf(message, "RQT %s\n", status);
@@ -273,9 +288,26 @@ int writePlayToFile(char *filename, char *play, char *guess)
     return 0;
 }
 
-// getGameScore: returns the score of the game in /games/PLID.txt
-int getGameScore(int errorsLeft, int maxErrors)
+int getMaxErrors(int lengthWord)
 {
+    if (lengthWord < 7)
+    {
+        return 7;
+    }
+    else if (lengthWord <= 10)
+    {
+        return 8;
+    }
+    else
+    {
+        return 9;
+    }
+}
+
+// getGameScore: returns the score of the game in /games/PLID.txt
+int getGameScore(int errorsLeft, int wordLength)
+{
+    int maxErrors = getMaxErrors(wordLength);
     return (int)((float)errorsLeft / (float)maxErrors * 100);
 }
 
@@ -307,22 +339,6 @@ int handleGameEnding(char *filename, char *PLID, int gameState, int gameScore)
     return 0;
 }
 
-int getMaxErrors(int lengthWord)
-{
-    if (lengthWord < 7)
-    {
-        return 7;
-    }
-    else if (lengthWord <= 10)
-    {
-        return 8;
-    }
-    else
-    {
-        return 9;
-    }
-}
-
 // getGameStateFromFile: returns [game_state, errorsLeft]
 int *getGameStateFromFile(char *filename)
 {
@@ -347,9 +363,10 @@ int *getGameStateFromFile(char *filename)
             result[1] = -1;
             return result;
         }
+        // remove /n from the end of the line
+        line[strlen(line) - 1] = '\0';
         char *token1 = strtok(line, " ");
         char *token2 = strtok(NULL, " ");
-
         // if token1 == "play", check if token2 is in word
         if (!strcmp(token1, "play"))
         {
@@ -379,9 +396,28 @@ int *getGameStateFromFile(char *filename)
                 }
             }
         }
+        else if (!strcmp(token1, "guess"))
+        {
+            if (!strcmp(token2, word))
+            {
+                result[0] = GAME_WON;
+                result[1] = errorsLeft;
+                return result;
+            }
+            else
+            {
+                errorsLeft--;
+                if (errorsLeft == 0)
+                {
+                    result[0] = GAME_LOST;
+                    result[1] = 0;
+                    return result;
+                }
+            }
+        }
         free(line);
     }
-    result[0] = GAME_ONGOING;
+    result[0] = GAME_CONTINUE;
     result[1] = errorsLeft;
     return result;
 }
@@ -390,11 +426,11 @@ char *processServerStart(char **tokenList, int numTokens)
 {
     if (numTokens != 2)
     {
-        return getServerReplyUDP(START, "NOK");
+        return getServerReplyUDP(START, "ERR", 0);
     }
     else if (!isValidPLID(tokenList[1]))
     {
-        return getServerReplyUDP(START, "NOK");
+        return getServerReplyUDP(START, "ERR", 0);
     }
 
     // check if /games/PLID.txt exists
@@ -403,14 +439,15 @@ char *processServerStart(char **tokenList, int numTokens)
     if (access(filename, F_OK) != -1)
     {
         free(filename);
-        return getServerReplyUDP(START, "NOK");
+        printf("Error: Player with PLID %s already has an ongoing game.\n", tokenList[1]);
+        return getServerReplyUDP(START, "NOK", 0);
     }
     // create the file PLID.txt
     int fd = open(filename, O_CREAT | O_WRONLY, 0644);
     if (fd == -1)
     {
         free(filename);
-        return getServerReplyUDP(START, "NOK");
+        return getServerReplyUDP(START, "ERR", 0);
     }
     printf("Created file %s.txt\n", tokenList[1]);
     char *line = getLineFromFile("word_eng.txt", currentWordFileLine);
@@ -418,7 +455,7 @@ char *processServerStart(char **tokenList, int numTokens)
     {
         free(filename);
         close(fd);
-        return getServerReplyUDP(START, "NOK");
+        return getServerReplyUDP(START, "ERR", 0);
     }
     printf("Picked line with number: %d and content: %s", currentWordFileLine, line);
     // write the line to PLID.txt
@@ -426,13 +463,13 @@ char *processServerStart(char **tokenList, int numTokens)
     {
         free(filename);
         close(fd);
-        return getServerReplyUDP(START, "NOK");
+        return getServerReplyUDP(START, "ERR", 0);
     }
     char *gameWord = strtok(line, " ");
     int gameWordLength = strlen(gameWord);
     int maxErrors = getMaxErrors(gameWordLength);
     currentWordFileLine = (currentWordFileLine + 1) % 25;
-    char *serverReply = getServerReplyUDP(START, "OK");
+    char *serverReply = getServerReplyUDP(START, "OK", 0);
     // add gameWordLength and maxErrors to serverReply
     char *finalServerReply = malloc(strlen(serverReply) + 10);
     // remove last char of serverReply
@@ -448,25 +485,21 @@ char *processServerStart(char **tokenList, int numTokens)
 char *processServerPlay(char **tokenList, int numTokens)
 {
     // tokenList = PLG PLID letter trial
-    for (int i = 0; i < numTokens; i++)
-    {
-        printf("tokenList[%d] = %s\n", i, tokenList[i]);
-    }
     if (numTokens != 4)
     {
-        return getServerReplyUDP(PLAY, "ERR");
+        return getServerReplyUDP(PLAY, "ERR", 0);
     }
     else if (!isValidPLID(tokenList[1]))
     {
-        return getServerReplyUDP(PLAY, "ERR");
+        return getServerReplyUDP(PLAY, "ERR", 0);
     }
     else if (!isValidPlay(tokenList[2]))
     {
-        return getServerReplyUDP(PLAY, "ERR");
+        return getServerReplyUDP(PLAY, "ERR", 0);
     }
     else if (!isValidTrial(tokenList[3]))
     {
-        return getServerReplyUDP(PLAY, "ERR");
+        return getServerReplyUDP(PLAY, "ERR", 0);
     }
     // check if PLID.txt doesnt exist in games folder
     char *filename = malloc(strlen(tokenList[1]) + 7);
@@ -475,66 +508,65 @@ char *processServerPlay(char **tokenList, int numTokens)
     {
         printf("Error, file %s doesn't exist.\n", filename);
         free(filename);
-        return getServerReplyUDP(START, "ERR");
+        return getServerReplyUDP(PLAY, "ERR", 0);
     }
-    // check if tokenList[3] is equal to the number of lines in games/PLID.txt
-    int numLines = getNumberOfLinesFromFile(filename);
-    if (numLines == -1)
+    // check if tokenList[3] (trial sent by player) is equal to the currentTrial
+    int currentTrial = getNumberOfLinesFromFile(filename);
+    if (currentTrial == -1)
     {
         free(filename);
-        return getServerReplyUDP(PLAY, "ERR");
+        return getServerReplyUDP(PLAY, "ERR", 0);
     }
-    else if (numLines != atoi(tokenList[3]))
+    else if (currentTrial != atoi(tokenList[3]))
     {
         free(filename);
-        return getServerReplyUDP(PLAY, "INV");
+        return getServerReplyUDP(PLAY, "INV", currentTrial);
     }
     // get word from first line of games/PLID.txt
     char *gameWord = getGameWordFromFile(filename);
     if (gameWord == NULL)
     {
-        printf("6\n");
         free(filename);
-        return getServerReplyUDP(PLAY, "ERR");
+        return getServerReplyUDP(PLAY, "ERR", 0);
     }
     // check if has been played before
     if (hasBeenPlayedBefore(filename, "play", tokenList[2]) == 1)
     {
         free(filename);
-        return getServerReplyUDP(PLAY, "DUP");
+        return getServerReplyUDP(PLAY, "DUP", currentTrial);
     }
     // write play to games/PLID.txt
     if (writePlayToFile(filename, "play", tokenList[2]) == -1)
     {
         free(filename);
-        return getServerReplyUDP(PLAY, "ERR");
+        return getServerReplyUDP(PLAY, "ERR", 0);
     }
     // get game state and errorsLeft from getGameStateFromFile
     int *gameState = getGameStateFromFile(filename);
     if (gameState == NULL)
     {
         free(filename);
-        return getServerReplyUDP(PLAY, "ERR");
+        return getServerReplyUDP(PLAY, "ERR", 0);
     }
     int gameStateResult = gameState[0];
     int errorsLeft = gameState[1];
     if (gameStateResult == GAME_ERROR)
     {
         free(filename);
-        return getServerReplyUDP(PLAY, "ERR");
+        return getServerReplyUDP(PLAY, "ERR", 0);
     }
     else if (gameStateResult == GAME_WON)
     {
         int gameScore = getGameScore(errorsLeft, strlen(gameWord));
         handleGameEnding(filename, tokenList[1], GAME_WON, gameScore);
         free(filename);
-        return getServerReplyUDP(PLAY, "WIN");
+        return getServerReplyUDP(PLAY, "WIN", currentTrial);
     }
     else if (gameStateResult == GAME_LOST)
     {
         handleGameEnding(filename, tokenList[1], GAME_LOST, 0);
         free(filename);
-        return getServerReplyUDP(PLAY, "OVR");
+        return getServerReplyUDP(PLAY, "OVR", currentTrial);
     }
     int *correctPositions = getCorrectPlayPositions(gameWord, tokenList[2]);
     // if correctPositions if empty then the user didn't guess any letter
@@ -542,28 +574,120 @@ char *processServerPlay(char **tokenList, int numTokens)
     {
         free(filename);
         free(correctPositions);
-        return getServerReplyUDP(PLAY, "NOK");
+        return getServerReplyUDP(PLAY, "NOK", currentTrial);
     }
-    // server reply = "RLG OK numCorrectPositions correctPositions(divided by spaced)"
-    char serverReply[SERVER_MESSAGE_UDP_SIZE];
+    // server reply = "RLG OK trial\n"
+    char *serverReply = getServerReplyUDP(PLAY, "OK", currentTrial);
+    // remove last char of serverReply
+    serverReply[strlen(serverReply) - 1] = '\0';
     int numCorrectPositions = 0;
     while (correctPositions[numCorrectPositions] != -1)
     {
         numCorrectPositions++;
     }
-    // RLG OK trial numCorrectPositions correctPositions
-    sprintf(serverReply, "RLG OK %s %d", tokenList[3], numCorrectPositions);
-    // add correctPositions separated by spaces to serverReply
+    // finalServerReply = "RLG OK trial numCorrectPositions correctPositions*(divided by spaced)
+    char *finalServerReply = malloc(strlen(serverReply) + 10);
+    sprintf(finalServerReply, "%s %d", serverReply, numCorrectPositions);
+    free(serverReply);
+    // add correctPositions separated by spaces to finalServerReply
     for (int i = 0; i < numCorrectPositions; i++)
     {
-        strcat(serverReply, " ");
+        strcat(finalServerReply, " ");
         char *position = malloc(2);
         sprintf(position, "%d", correctPositions[i]);
-        strcat(serverReply, position);
+        strcat(finalServerReply, position);
         free(position);
     }
-    strcat(serverReply, "\n");
+    strcat(finalServerReply, "\n");
     free(filename);
     free(correctPositions);
-    return strdup(serverReply);
+    return strdup(finalServerReply);
+}
+
+char *processServerGuess(char **tokenList, int numTokens)
+{
+    // tokenList = PWG PLID guess trial
+    if (numTokens != 4)
+    {
+        return getServerReplyUDP(GUESS, "ERR", 0);
+    }
+    else if (!isValidPLID(tokenList[1]))
+    {
+        return getServerReplyUDP(GUESS, "ERR", 0);
+    }
+    else if (!isValidGuess(tokenList[2]))
+    {
+        return getServerReplyUDP(GUESS, "ERR", 0);
+    }
+    else if (!isValidTrial(tokenList[3]))
+    {
+        return getServerReplyUDP(GUESS, "ERR", 0);
+    }
+    // check if PLID.txt doesnt exist in games folder
+    char *filename = malloc(strlen(tokenList[1]) + 7);
+    sprintf(filename, "games/%s.txt", tokenList[1]);
+    if (access(filename, F_OK) == -1)
+    {
+        printf("Error, file %s doesn't exist.\n", filename);
+        free(filename);
+        return getServerReplyUDP(GUESS, "ERR", 0);
+    }
+    // check if tokenList[3] is equal to the number of lines in games/PLID.txt
+    int currentTrial = getNumberOfLinesFromFile(filename);
+    if (currentTrial == -1)
+    {
+        free(filename);
+        return getServerReplyUDP(GUESS, "ERR", 0);
+    }
+    else if (currentTrial != atoi(tokenList[3]))
+    {
+        free(filename);
+        return getServerReplyUDP(GUESS, "INV", currentTrial);
+    }
+    // get word from first line of games/PLID.txt
+    char *gameWord = getGameWordFromFile(filename);
+    if (gameWord == NULL)
+    {
+        free(filename);
+        return getServerReplyUDP(GUESS, "ERR", 0);
+    }
+    // write play to games/PLID.txt
+    if (writePlayToFile(filename, "guess", tokenList[2]) == -1)
+    {
+        free(filename);
+        return getServerReplyUDP(GUESS, "ERR", 0);
+    }
+    // get game state and errorsLeft from getGameStateFromFile
+    int *gameState = getGameStateFromFile(filename);
+    if (gameState == NULL)
+    {
+        free(filename);
+        return getServerReplyUDP(GUESS, "ERR", 0);
+    }
+    int gameStateResult = gameState[0];
+    int errorsLeft = gameState[1];
+    if (gameStateResult == GAME_ERROR)
+    {
+        free(filename);
+        return getServerReplyUDP(GUESS, "ERR", 0);
+    }
+    else if (gameStateResult == GAME_WON)
+    {
+        int gameScore = getGameScore(errorsLeft, strlen(gameWord));
+        handleGameEnding(filename, tokenList[1], GAME_WON, gameScore);
+        free(filename);
+        return getServerReplyUDP(GUESS, "WIN", currentTrial);
+    }
+    else if (gameStateResult == GAME_LOST)
+    {
+        handleGameEnding(filename, tokenList[1], GAME_LOST, 0);
+        free(filename);
+        return getServerReplyUDP(GUESS, "OVR", currentTrial);
+    }
+    else
+    {
+        // gameStateResult == GAME_CONTINUE
+        free(filename);
+        return getServerReplyUDP(GUESS, "NOK", currentTrial);
+    }
 }

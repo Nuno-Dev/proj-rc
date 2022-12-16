@@ -88,7 +88,7 @@
 
 #define GAME_WON 2
 
-#define GAME_ONGOING 1
+#define GAME_CONTINUE 1
 
 #define GAME_LOST 0
 

@@ -266,7 +266,8 @@ void processUDPReply(char *message)
         }
         else if (!strcmp(serverStatus, "NOK"))
         {
-            printf("No, '%s' is not the correct word: %s\n", guessedWord, getCurrentWordWithSpaces());
+            currentErrors++;
+            printf("No, '%s' is not the correct word: %s [%d Errors left]\n", guessedWord, getCurrentWordWithSpaces(), maxNumberErrors - currentErrors);
             currentTrial++;
         }
         else if (!strcmp(serverStatus, "OVR"))
