@@ -19,6 +19,9 @@ char *processServerStart(char **tokenList, int numTokens);
 char *processServerPlay(char **tokenList, int numTokens);
 char *processServerGuess(char **tokenList, int numTokens);
 char *processServerQuit(char **tokenList, int numTokens);
+void processServerScoreboard(int fd);
+void processServerHint(int fd);
+void processServerState(int fd);
 
 char *processServerUDP(char *message)
 {
