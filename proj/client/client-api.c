@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <errno.h>
 
-/* DS Server information variables */
+/* GS Server information variables */
 char GSIP[GS_IP_SIZE] = GS_DEFAULT_IP;
 char GSport[GS_PORT_SIZE] = GS_DEFAULT_PORT;
 
@@ -28,7 +28,6 @@ int TCPConnection = OFF;
 int clientSession = LOGGED_OUT;
 char clientPLID[CLIENT_PLID_SIZE];
 
-/* Message to DS via UDP protocol variable */
 char clientMessage[CLIENT_MESSAGE_UDP_SIZE] = {'\0'};
 
 char currentWord[MAX_WORD_LENGTH_SIZE] = {'\0'};
@@ -304,7 +303,7 @@ void processUDPReply(char *message)
         }
     }
     else
-    { // Unexpected protocol DS reply was made
+    { // Server reply broke unexpected protocol
         errUDP();
     }
 }

@@ -114,12 +114,12 @@ void createUDPTCPConnections()
         closeTCPSocket(fdTCP, resTCP);
         exit(EXIT_FAILURE);
     }
-    printf("Server started @ %s.\nCurrently listening in port %s for UDP and TCP connections...\n\n", hostname, portGS);
+    printf("Server <%s> started.\nCurrently listening in port %s for UDP and TCP connections...\n\n", hostname, portGS);
 }
 
 void logVerbose(char *clientBuf, struct sockaddr_in s)
 {
-    printf("Client @ %s in port %d sent: %s\n", inet_ntoa(s.sin_addr), ntohs(s.sin_port), clientBuf);
+    printf("Client <%s> in port %d sent: %s\n", inet_ntoa(s.sin_addr), ntohs(s.sin_port), clientBuf);
 }
 
 void initiateServerUDP()
