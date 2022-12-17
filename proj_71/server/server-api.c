@@ -62,14 +62,12 @@ void processServerTCP(int fd, char *command)
     case SCOREBOARD:
         processServerScoreboard(fd);
         break;
-    /*
     case HINT:
         processServerHint(fd);
         break;
     case STATE:
         processServerState(fd);
         break;
-        */
     default:
         if (sendTCPMessage(fd, ERROR_MSG) == -1)
         {
@@ -129,7 +127,7 @@ static void sendServerStatusTCP(int fd, int command, char *status)
         sprintf(message, "RST %s\n", status);
         break;
     }
-    if (sendTCPMessage(fd, message) == -1)
+    if (sendTCPMessage(fd, strdup(message)) == -1)
     {
         close(fd);
         exit(EXIT_FAILURE);
@@ -710,18 +708,15 @@ char *processServerQuit(char **tokenList, int numTokens)
 
 void processServerScoreboard(int fd)
 {
-    // get scoreboard from scoreboard.txt
-    char *scoreboard = getScoreboardFromFile();
-    if (scoreboard == NULL)
-    {
-        printf("Error, couldn't get scoreboard from scoreboard.txt.\n");
-        sendServerStatusTCP(fd, SCOREBOARD, "ERR");
-        return;
-    }
-    // send scoreboard to client
-    if (sendto(serverSocket, scoreboard, strlen(scoreboard), 0, (struct sockaddr *)&clientAddress, sizeof(clientAddress)) == -1)
-    {
-        printf("Error, couldn't send scoreboard to client.\n");
-    }
-    free(scoreboard);
+    sendServerStatusTCP(fd, SCOREBOARD, "ERR");
+}
+
+void processServerHint(int fd)
+{
+    sendServerStatusTCP(fd, HINT, "ERR");
+}
+
+void processServerState(int fd)
+{
+    sendServerStatusTCP(fd, STATE, "ERR");
 }
