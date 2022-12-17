@@ -40,7 +40,7 @@ $(SERVER_EXEC): $(OBJ2)
 	$(info To run server -> ./$(SERVER_EXEC) word_file [-p GSport] [-v])
 
 
-# Create .o for all .c inside the main proj directory
+# Create .o for all .c inside the main proj_71 directory
 $(ODIR)/%.o: %.c $(DEPS)
 	@mkdir -p $(@D)
 	@$(CC) $(CFLAGS) -c -o $@ $< 

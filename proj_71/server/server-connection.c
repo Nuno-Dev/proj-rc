@@ -194,13 +194,13 @@ void initiateServerTCP()
                 exit(EXIT_FAILURE);
             }
             if (commandCode[SERVER_COMMAND_SIZE - 1] != ' ')
-            { // Protocol is (XXX )
+            {
                 sendTCPMessage(newFdTCP, ERROR_MSG);
                 close(newFdTCP);
                 exit(EXIT_FAILURE);
             }
-            commandCode[SERVER_COMMAND_SIZE - 1] = '\0'; // Remove backspace
-            printf("Client @ %s:%d sent %s command.\n", inet_ntoa(cliaddr.sin_addr), ntohs(cliaddr.sin_port), commandCode);
+            commandCode[SERVER_COMMAND_SIZE - 1] = '\0';
+            printf("Client <%s> :%d sent %s command.\n", inet_ntoa(cliaddr.sin_addr), ntohs(cliaddr.sin_port), commandCode);
             processServerTCP(newFdTCP, commandCode);
             close(newFdTCP);
             exit(EXIT_SUCCESS);
@@ -211,7 +211,7 @@ void initiateServerTCP()
         } while (ret == -1 && errno == EINTR);
         if (ret == -1)
         {
-            fprintf(stderr, "Failed to properly close new descriptor upon possible child process death");
+            fprintf(stderr, "Failed to properly close new descriptor.\n");
             closeTCPSocket(fdTCP, resTCP);
             exit(EXIT_FAILURE);
         }

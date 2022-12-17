@@ -1,9 +1,6 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-/* Preprocessed macro to determine min(x,y) */
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
-
 /* By default GS server is set to be listening on localhost */
 #define GS_DEFAULT_IP "127.0.0.1"
 
@@ -39,6 +36,7 @@
 #define LOGGED_OUT 0
 #define LOGGED_IN 1
 
+/* State of the current verbose flag */
 #define VERBOSE_ON 1
 #define VERBOSE_OFF 0
 
@@ -64,17 +62,14 @@
 /* The buffer size for a protocol message status via UDP protocol */
 #define SERVER_STATUS_SIZE 8
 
-#define CLIENT_PUID_SIZE 6
-
 #define MAX_WORD_LENGTH_SIZE 30
 
 #define TCP_MESSAGE_READ_BUFFER_SIZE 512
 
 #define FILE_NAME_SIZE 1024
 
-/* TCP connection */
+/* TCP connection flags */
 #define ON 1
-
 #define OFF 0
 
 /* GS wrong protocol message */
@@ -83,15 +78,13 @@
 /* GS wrong protocol message bytes */
 #define ERROR_MSG_SIZE 4
 
-/* Default size for the GS TCP listen queue */
+/* Maximum number of connections the kernel should queue for this socket */
 #define GS_LISTENQUEUE_SIZE 10
 
+/* Game state flags */
 #define GAME_WON 2
-
 #define GAME_CONTINUE 1
-
 #define GAME_LOST 0
-
 #define GAME_ERROR -1
 
 #endif

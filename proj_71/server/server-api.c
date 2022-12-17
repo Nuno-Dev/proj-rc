@@ -59,10 +59,10 @@ void processServerTCP(int fd, char *command)
     int cmd = parseServerCommand(command);
     switch (cmd)
     {
-        /*
     case SCOREBOARD:
         processServerScoreboard(fd);
         break;
+    /*
     case HINT:
         processServerHint(fd);
         break;
@@ -120,27 +120,14 @@ static void sendServerStatusTCP(int fd, int command, char *status)
     switch (command)
     {
     case SCOREBOARD:
-        if (!strcmp(status, "NOK"))
-        {
-            sprintf(message, "RUL NOK\n");
-        }
-        else
-        {
-            sprintf(message, "RSB %s", status);
-        }
+        sprintf(message, "RSB %s", status);
         break;
     case HINT:
         sprintf(message, "RHL %s\n", status);
         break;
     case STATE:
-        if (!strcmp(status, "NOK") || !strcmp(status, "EOF"))
-        {
-            sprintf(message, "RRT %s\n", status);
-        }
-        else
-        {
-            sprintf(message, "RST %s", status);
-        }
+        sprintf(message, "RST %s\n", status);
+        break;
     }
     if (sendTCPMessage(fd, message) == -1)
     {
@@ -719,4 +706,22 @@ char *processServerQuit(char **tokenList, int numTokens)
     }
     free(filename);
     return getServerReplyUDP(QUIT, "OK", 0);
+}
+
+void processServerScoreboard(int fd)
+{
+    // get scoreboard from scoreboard.txt
+    char *scoreboard = getScoreboardFromFile();
+    if (scoreboard == NULL)
+    {
+        printf("Error, couldn't get scoreboard from scoreboard.txt.\n");
+        sendServerStatusTCP(fd, SCOREBOARD, "ERR");
+        return;
+    }
+    // send scoreboard to client
+    if (sendto(serverSocket, scoreboard, strlen(scoreboard), 0, (struct sockaddr *)&clientAddress, sizeof(clientAddress)) == -1)
+    {
+        printf("Error, couldn't send scoreboard to client.\n");
+    }
+    free(scoreboard);
 }
